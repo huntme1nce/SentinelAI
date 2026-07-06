@@ -2,18 +2,20 @@
 MODULE: CFG-001
 FILE: CFG-001-002
 Module Name: Configuration Service
-Version: 0.4.0
+Version: 0.5.1
 Purpose: Loads, persists, and validates JSON configuration for Sentinel AI.
-Dependencies: json, pathlib, shutil, sentinel_ai.config.config_schema, sentinel_ai.core.constants, sentinel_ai.utils.paths
+Dependencies: copy, json, pathlib, shutil, sentinel_ai.config.config_schema, sentinel_ai.core.constants, sentinel_ai.utils.paths
 Change History:
 - 0.1.0: Added production configuration loading from packaged defaults into writable user config.
 - 0.2.0: Added backward-compatible configuration merge so Sprint 1 user configs receive Sprint 2 MT5 keys safely.
 - 0.3.0: Preserved backward-compatible configuration merge for Sprint 3 market_data keys.
 - 0.4.0: Preserved configuration merge behavior for Sprint 4 chart resources.
+- 0.5.1: Added targeted configuration migration for one-second refresh defaults.
 """
 
 from __future__ import annotations
 
+import copy
 import json
 import shutil
 from pathlib import Path
@@ -42,9 +44,10 @@ class ConfigService:
         default_payload = self._read_json(resource_path(DEFAULT_CONFIG_RESOURCE))
         user_payload = self._read_json(self._config_path)
         merged_payload = self._merge_missing_values(default_payload, user_payload)
-        if merged_payload != user_payload:
-            self._write_json(self._config_path, merged_payload)
-        return SentinelConfig.from_dict(merged_payload)
+        migrated_payload = self._apply_versioned_migrations(default_payload, merged_payload)
+        if migrated_payload != user_payload:
+            self._write_json(self._config_path, migrated_payload)
+        return SentinelConfig.from_dict(migrated_payload)
 
     def _ensure_config_file_exists(self) -> None:
         """Create the writable configuration file from packaged defaults when absent."""
@@ -69,6 +72,41 @@ class ConfigService:
         with path.open("w", encoding="utf-8") as file_handle:
             json.dump(payload, file_handle, indent=2, ensure_ascii=False)
             file_handle.write("\n")
+
+    @classmethod
+    def _apply_versioned_migrations(cls, defaults: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
+        """Apply narrow, version-aware configuration migrations without resetting unrelated user settings."""
+        migrated = copy.deepcopy(current)
+        current_version = str(migrated.get("application", {}).get("version", "0.0.0"))
+        target_version = str(defaults.get("application", {}).get("version", current_version))
+
+        if cls._is_version_older(current_version, "0.5.1"):
+            default_intervals = defaults.get("market_data", {}).get("refresh_intervals_seconds", {})
+            if isinstance(default_intervals, dict):
+                market_data = migrated.setdefault("market_data", {})
+                market_data["refresh_intervals_seconds"] = copy.deepcopy(default_intervals)
+
+        application = migrated.setdefault("application", {})
+        application["version"] = target_version
+        return migrated
+
+    @staticmethod
+    def _is_version_older(current_version: str, target_version: str) -> bool:
+        """Return True when current_version is numerically lower than target_version."""
+        return ConfigService._version_tuple(current_version) < ConfigService._version_tuple(target_version)
+
+    @staticmethod
+    def _version_tuple(version: str) -> tuple[int, int, int]:
+        """Convert a semantic version string into a comparable three-part integer tuple."""
+        parts = str(version).strip().split(".")
+        numeric_parts: list[int] = []
+        for index in range(3):
+            if index >= len(parts):
+                numeric_parts.append(0)
+                continue
+            raw_part = "".join(character for character in parts[index] if character.isdigit())
+            numeric_parts.append(int(raw_part or 0))
+        return (numeric_parts[0], numeric_parts[1], numeric_parts[2])
 
     @classmethod
     def _merge_missing_values(cls, defaults: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:

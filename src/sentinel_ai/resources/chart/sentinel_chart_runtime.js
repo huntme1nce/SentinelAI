@@ -1,12 +1,13 @@
 /*
-MODULE: RES-004
-FILE: RES-004-002
+MODULE: CHART-002
+FILE: CHART-002-001
 Module Name: Sentinel Chart Runtime
-Version: 0.4.0
-Purpose: Renders validated OHLC candles inside the embedded chart web view using a standalone HTML5 canvas runtime.
+Version: 0.5.1
+Purpose: Renders validated candlestick data with controlled live updates, chart panning, zooming, and review-state preservation.
 Dependencies: Browser Canvas API
 Change History:
 - 0.4.0: Added offline-safe candlestick renderer for the Sprint 4 embedded chart panel.
+- 0.5.1: Added drag-to-pan, mouse-wheel zoom, double-click reset, and chart-position preservation during live refresh.
 */
 
 (function () {
@@ -15,6 +16,11 @@ Change History:
   const canvas = document.getElementById("chart-canvas");
   const overlay = document.getElementById("status-overlay");
   const context = canvas.getContext("2d");
+
+  const MIN_VISIBLE_CANDLES = 20;
+  const MAX_VISIBLE_CANDLES = 500;
+  const MIN_ZOOM_SCALE = 0.60;
+  const MAX_ZOOM_SCALE = 3.50;
 
   const state = {
     candles: [],
@@ -26,6 +32,17 @@ Change History:
       latestTime: "-",
     },
     crosshair: null,
+    view: {
+      offsetFromRight: 0,
+      zoomScale: 1,
+      manualNavigation: false,
+    },
+    drag: {
+      active: false,
+      startX: 0,
+      startOffsetFromRight: 0,
+      moved: false,
+    },
   };
 
   function resizeCanvas() {
@@ -50,8 +67,20 @@ Change History:
 
   function setCandles(candles, metadata) {
     const normalizedCandles = Array.isArray(candles) ? candles : [];
+    const previousSymbol = state.metadata.symbol;
+    const previousTimeframe = state.metadata.timeframe;
+    const nextMetadata = Object.assign({}, state.metadata, metadata || {});
+    const marketContextChanged = previousSymbol !== nextMetadata.symbol || previousTimeframe !== nextMetadata.timeframe;
+
     state.candles = normalizedCandles.filter(isValidCandle);
-    state.metadata = Object.assign({}, state.metadata, metadata || {}, { candleCount: state.candles.length });
+    state.metadata = Object.assign({}, nextMetadata, { candleCount: state.candles.length });
+
+    if (marketContextChanged) {
+      resetViewToLatest(false);
+    } else {
+      clampViewState(createLayout(Math.max(canvas.clientWidth, 1), Math.max(canvas.clientHeight, 1)));
+    }
+
     renderChart();
   }
 
@@ -77,13 +106,16 @@ Change History:
     }
 
     const layout = createLayout(width, height);
-    const visibleCandles = state.candles.slice(-layout.visibleCapacity);
+    clampViewState(layout);
+    const visibleRange = resolveVisibleRange(layout);
+    const visibleCandles = visibleRange.candles;
     const priceRange = resolvePriceRange(visibleCandles);
+
     drawGrid(layout, priceRange);
     drawCandles(layout, visibleCandles, priceRange);
-    drawAxes(layout, visibleCandles, priceRange);
+    drawAxes(layout, visibleRange);
     drawLatestPriceLine(layout, visibleCandles, priceRange);
-    drawCrosshair(layout, visibleCandles, priceRange);
+    drawCrosshair(layout, visibleRange, priceRange);
     updateOverlay(visibleCandles);
   }
 
@@ -104,10 +136,14 @@ Change History:
     };
     const plotWidth = Math.max(width - padding.left - padding.right, 20);
     const plotHeight = Math.max(height - padding.top - padding.bottom, 20);
-    const candleWidth = 7;
-    const candleGap = 3;
-    const slotWidth = candleWidth + candleGap;
-    const visibleCapacity = Math.max(Math.floor(plotWidth / slotWidth), 20);
+    const baseSlotWidth = 10;
+    const slotWidth = Math.max(4, baseSlotWidth * state.view.zoomScale);
+    const candleWidth = Math.max(2.5, Math.min(slotWidth * 0.70, 14));
+    const candleGap = Math.max(slotWidth - candleWidth, 1);
+    const visibleCapacity = Math.max(
+      MIN_VISIBLE_CANDLES,
+      Math.min(MAX_VISIBLE_CANDLES, Math.floor(plotWidth / slotWidth))
+    );
 
     return {
       width,
@@ -124,6 +160,29 @@ Change History:
       slotWidth,
       visibleCapacity,
     };
+  }
+
+  function resolveVisibleRange(layout) {
+    const totalCandles = state.candles.length;
+    const visibleCount = Math.min(layout.visibleCapacity, totalCandles);
+    const endIndexExclusive = Math.max(visibleCount, totalCandles - state.view.offsetFromRight);
+    const startIndex = Math.max(0, endIndexExclusive - visibleCount);
+    const resolvedEndIndex = Math.min(totalCandles, startIndex + visibleCount);
+
+    return {
+      candles: state.candles.slice(startIndex, resolvedEndIndex),
+      startIndex,
+      endIndexExclusive: resolvedEndIndex,
+      visibleCount: resolvedEndIndex - startIndex,
+    };
+  }
+
+  function clampViewState(layout) {
+    state.view.zoomScale = clamp(state.view.zoomScale, MIN_ZOOM_SCALE, MAX_ZOOM_SCALE);
+    const visibleCount = Math.min(layout.visibleCapacity, state.candles.length);
+    const maxOffsetFromRight = Math.max(0, state.candles.length - visibleCount);
+    state.view.offsetFromRight = Math.round(clamp(state.view.offsetFromRight, 0, maxOffsetFromRight));
+    state.view.manualNavigation = state.view.offsetFromRight > 0;
   }
 
   function resolvePriceRange(candles) {
@@ -221,7 +280,8 @@ Change History:
     });
   }
 
-  function drawAxes(layout, candles) {
+  function drawAxes(layout, visibleRange) {
+    const candles = visibleRange.candles;
     context.save();
     context.strokeStyle = "rgba(81, 155, 176, 0.55)";
     context.lineWidth = 1;
@@ -247,7 +307,11 @@ Change History:
   }
 
   function drawLatestPriceLine(layout, candles, priceRange) {
-    const latest = candles[candles.length - 1];
+    const latest = state.candles[state.candles.length - 1];
+    if (!latest) {
+      return;
+    }
+
     const latestClose = Number(latest.close);
     const y = yForPrice(layout, priceRange, latestClose);
     const bullish = latestClose >= Number(latest.open);
@@ -270,11 +334,12 @@ Change History:
     context.restore();
   }
 
-  function drawCrosshair(layout, candles, priceRange) {
-    if (state.crosshair === null) {
+  function drawCrosshair(layout, visibleRange, priceRange) {
+    if (state.crosshair === null || state.drag.active) {
       return;
     }
 
+    const candles = visibleRange.candles;
     const x = state.crosshair.x;
     const y = state.crosshair.y;
     if (x < layout.plotLeft || x > layout.plotRight || y < layout.plotTop || y > layout.plotBottom) {
@@ -297,9 +362,10 @@ Change History:
     const index = Math.max(0, Math.min(candles.length - 1, rawIndex));
     const candle = candles[index];
     if (candle) {
-      const text = `${formatTime(Number(candle.time))}  O:${formatPrice(candle.open)} H:${formatPrice(candle.high)} L:${formatPrice(candle.low)} C:${formatPrice(candle.close)}`;
+      const absoluteIndex = visibleRange.startIndex + index;
+      const text = `${formatTime(Number(candle.time))}  #${absoluteIndex + 1}  O:${formatPrice(candle.open)} H:${formatPrice(candle.high)} L:${formatPrice(candle.low)} C:${formatPrice(candle.close)}`;
       context.fillStyle = "rgba(2, 12, 16, 0.90)";
-      context.fillRect(layout.plotLeft + 8, layout.plotTop + 8, Math.min(460, text.length * 7.1), 24);
+      context.fillRect(layout.plotLeft + 8, layout.plotTop + 8, Math.min(520, text.length * 7.1), 24);
       context.fillStyle = "#d9f6ff";
       context.font = "12px Segoe UI, Arial";
       context.fillText(text, layout.plotLeft + 16, layout.plotTop + 25);
@@ -316,13 +382,16 @@ Change History:
     context.restore();
   }
 
-  function updateOverlay(candles) {
-    const latest = candles[candles.length - 1];
+  function updateOverlay(visibleCandles) {
+    const latest = state.candles[state.candles.length - 1];
     const latestClose = latest ? formatPrice(latest.close) : "-";
     const latestTime = latest ? formatDateTime(Number(latest.time)) : "-";
     const symbol = state.metadata.symbol || "-";
     const timeframe = state.metadata.timeframe || "-";
-    setStatus(`${symbol} ${timeframe} | Candles: ${state.candles.length} | Latest: ${latestClose} | ${latestTime}`);
+    const mode = state.view.manualNavigation ? "Reviewing history | Double-click returns latest" : "Live view";
+    const zoom = `Zoom ${state.view.zoomScale.toFixed(2)}x`;
+    const visibleText = `${visibleCandles.length}/${state.candles.length} visible`;
+    setStatus(`${symbol} ${timeframe} | ${visibleText} | Latest: ${latestClose} | ${latestTime} | ${mode} | ${zoom}`);
   }
 
   function formatPrice(price) {
@@ -343,18 +412,106 @@ Change History:
     return date.toISOString().replace("T", " ").replace(".000Z", " UTC");
   }
 
+  function clamp(value, minimum, maximum) {
+    return Math.min(Math.max(Number(value), minimum), maximum);
+  }
+
+  function resetViewToLatest(resetZoom) {
+    state.view.offsetFromRight = 0;
+    state.view.manualNavigation = false;
+    if (resetZoom) {
+      state.view.zoomScale = 1;
+    }
+  }
+
+  function updateCanvasCursor() {
+    if (state.drag.active) {
+      canvas.style.cursor = "grabbing";
+    } else if (state.view.manualNavigation) {
+      canvas.style.cursor = "grab";
+    } else {
+      canvas.style.cursor = "crosshair";
+    }
+  }
+
+  canvas.addEventListener("mousedown", function (event) {
+    if (event.button !== 0) {
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    state.drag.active = true;
+    state.drag.startX = event.clientX - rect.left;
+    state.drag.startOffsetFromRight = state.view.offsetFromRight;
+    state.drag.moved = false;
+    updateCanvasCursor();
+  });
+
   canvas.addEventListener("mousemove", function (event) {
     const rect = canvas.getBoundingClientRect();
-    state.crosshair = {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    state.crosshair = { x, y };
+
+    if (state.drag.active) {
+      const layout = createLayout(Math.max(canvas.clientWidth, 1), Math.max(canvas.clientHeight, 1));
+      const deltaCandles = Math.round((x - state.drag.startX) / layout.slotWidth);
+      if (Math.abs(deltaCandles) > 0) {
+        state.drag.moved = true;
+      }
+      state.view.offsetFromRight = state.drag.startOffsetFromRight + deltaCandles;
+      clampViewState(layout);
+    }
+
+    updateCanvasCursor();
+    renderChart();
+  });
+
+  canvas.addEventListener("mouseup", function () {
+    state.drag.active = false;
+    updateCanvasCursor();
     renderChart();
   });
 
   canvas.addEventListener("mouseleave", function () {
+    state.drag.active = false;
     state.crosshair = null;
+    updateCanvasCursor();
     renderChart();
+  });
+
+  canvas.addEventListener("wheel", function (event) {
+    event.preventDefault();
+    if (state.candles.length === 0) {
+      return;
+    }
+
+    const layoutBefore = createLayout(Math.max(canvas.clientWidth, 1), Math.max(canvas.clientHeight, 1));
+    const visibleBefore = resolveVisibleRange(layoutBefore);
+    const centerIndex = visibleBefore.startIndex + Math.floor(visibleBefore.visibleCount / 2);
+    const zoomMultiplier = event.deltaY < 0 ? 1.15 : 1 / 1.15;
+    state.view.zoomScale = clamp(state.view.zoomScale * zoomMultiplier, MIN_ZOOM_SCALE, MAX_ZOOM_SCALE);
+
+    const layoutAfter = createLayout(Math.max(canvas.clientWidth, 1), Math.max(canvas.clientHeight, 1));
+    const visibleAfterCount = Math.min(layoutAfter.visibleCapacity, state.candles.length);
+    state.view.offsetFromRight = state.candles.length - centerIndex - Math.ceil(visibleAfterCount / 2);
+    clampViewState(layoutAfter);
+    state.view.manualNavigation = state.view.offsetFromRight > 0;
+    updateCanvasCursor();
+    renderChart();
+  }, { passive: false });
+
+  canvas.addEventListener("dblclick", function () {
+    resetViewToLatest(true);
+    updateCanvasCursor();
+    renderChart();
+  });
+
+  window.addEventListener("mouseup", function () {
+    if (state.drag.active) {
+      state.drag.active = false;
+      updateCanvasCursor();
+      renderChart();
+    }
   });
 
   window.addEventListener("resize", resizeCanvas);
@@ -363,7 +520,12 @@ Change History:
     setCandles: setCandles,
     setStatus: setStatus,
     render: renderChart,
+    resetViewToLatest: function () {
+      resetViewToLatest(true);
+      renderChart();
+    },
   };
 
+  updateCanvasCursor();
   resizeCanvas();
 }());

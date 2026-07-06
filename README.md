@@ -2,8 +2,8 @@
 MODULE: DOC-001
 FILE: DOC-001-001
 Module Name: Project README
-Version: 0.5.0
-Purpose: Documents Sentinel AI setup, sprint scope, validation, chart rendering, live refresh, and build instructions.
+Version: 0.5.1
+Purpose: Documents Sentinel AI setup, sprint scope, validation, chart rendering, one-second live refresh, chart navigation, and build instructions.
 Dependencies: Markdown
 Change History:
 - 0.1.0: Added Sprint 1 documentation.
@@ -11,6 +11,7 @@ Change History:
 - 0.3.0: Added Sprint 3 market data feed notes and NumPy compatibility guidance.
 - 0.4.0: Added Sprint 4 live chart rendering notes.
 - 0.5.0: Added Sprint 5 live market refresh engine notes.
+- 0.5.1: Added one-second refresh defaults, chart drag/zoom notes, and targeted config migration details.
 -->
 
 # Sentinel AI
@@ -19,9 +20,9 @@ Sentinel AI is a professional Windows desktop trading workstation foundation bui
 
 ## Current Sprint
 
-Version: 0.5.0
+Version: 0.5.1
 
-Sprint 5 adds the Live Market Refresh Engine while preserving the Sprint 1 GUI layout, Sprint 2 MT5 connection architecture, Sprint 3 market data feed layer, and Sprint 4 chart renderer.
+Sprint 5.1 patches the Sprint 5 Live Market Refresh Engine by changing default refresh cadence to one second and adding chart navigation controls while preserving the existing GUI layout and service boundaries.
 
 ## Completed Sprint Scope
 
@@ -84,7 +85,20 @@ Sprint 5 adds the Live Market Refresh Engine while preserving the Sprint 1 GUI l
 - No trade execution logic
 - No GUI layout redesign
 
-Trade execution, prediction generation, and learning adjustments are intentionally outside Sprint 5 scope.
+### Sprint 5.1: Refresh Timing and Chart Navigation Patch
+
+- Default refresh interval changed to one second for all supported configured timeframes
+- Existing writable user configs from versions below `0.5.1` receive the new one-second interval migration automatically
+- Chart supports left/right dragging to review previous candles
+- Chart supports mouse-wheel zoom
+- Chart preserves historical review position during live refresh instead of snapping back to the latest candle
+- Double-clicking the chart resets view and zoom back to the latest candle
+- PowerShell build script and PyInstaller spec comment formatting corrected for Windows standalone compatibility
+- No prediction logic
+- No trade execution logic
+- No GUI layout redesign
+
+Trade execution, prediction generation, and learning adjustments are intentionally outside Sprint 5.1 scope.
 
 ## Run Locally
 
@@ -107,7 +121,7 @@ python scripts/validate_sprint.py
 Expected result:
 
 ```text
-Sprint validation passed: source compiled, resources verified, config loaded, MT5 mapping available, market feed conversion validated, chart assets ready, live refresh configured.
+Sprint validation passed: source compiled, resources verified, config loaded, MT5 mapping available, market feed conversion validated, chart assets ready, one-second live refresh configured, chart navigation ready.
 ```
 
 ## Build EXE
@@ -123,24 +137,34 @@ The build output is created under `dist\SentinelAI`.
 - Install and log in to your broker's MT5 terminal before starting Sentinel AI.
 - The configured default symbol is `GOLDm#`.
 - If your broker uses a different symbol name, update the writable config file under `%LOCALAPPDATA%\SentinelAI\config\config.json`.
-- Sprint 5 is read-only for market data and does not place trades.
+- Sprint 5.1 is read-only for market data and does not place trades.
 - Keep `numpy==1.26.4` unless MT5 package compatibility is verified against a newer version.
 
 ## Live Refresh Notes
 
-Default refresh intervals are configured under `market_data.refresh_intervals_seconds`:
+Default refresh intervals are configured under `market_data.refresh_intervals_seconds`.
+
+Sprint 5.1 default:
 
 - `M1`: 1 second
-- `M5`: 2 seconds
-- `M15`: 5 seconds
-- `M30`: 10 seconds
-- `H1`: 15 seconds
-- `H4`: 30 seconds
-- `D1`: 60 seconds
+- `M5`: 1 second
+- `M15`: 1 second
+- `M30`: 1 second
+- `H1`: 1 second
+- `H4`: 1 second
+- `D1`: 1 second
+- `DEFAULT`: 1 second
 
 The GUI does not call MT5 directly. The live chart receives validated snapshots from `MarketRefreshService` through application-level signal handling.
 
-## Chart Notes
+## Chart Navigation Notes
+
+- Drag left or right on the chart to move through previous candles.
+- Use the mouse wheel to zoom in or zoom out.
+- While reviewing older candles, live refresh keeps your review position instead of forcing the latest candle view.
+- Double-click the chart to reset to the latest candle and default zoom.
+
+## Chart Responsibility Notes
 
 - The chart panel renders only validated market-feed candles.
 - The GUI does not calculate entries, confidence, trend, support, resistance, or trade signals.

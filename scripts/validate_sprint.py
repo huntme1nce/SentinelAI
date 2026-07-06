@@ -2,8 +2,8 @@
 MODULE: OPS-001
 FILE: OPS-001-001
 Module Name: Sprint Validator
-Version: 0.5.0
-Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, and refresh configuration.
+Version: 0.5.1
+Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, one-second refresh configuration, and chart navigation assets.
 Dependencies: compileall, datetime, json, logging, pathlib, sys, pandas
 Change History:
 - 0.1.0: Added compile and resource validation for stable milestone handoff.
@@ -11,6 +11,7 @@ Change History:
 - 0.3.0: Added Sprint 3 market data feed validation using a deterministic gateway.
 - 0.4.0: Added Sprint 4 embedded chart resource and payload serialization validation.
 - 0.5.0: Added Sprint 5 live refresh service file and configuration validation.
+- 0.5.1: Added validation for one-second refresh defaults and chart navigation runtime controls.
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ import pandas as pd
 
 
 def main() -> int:
-    """Compile project source and verify required Sprint 5 live refresh components."""
+    """Compile project source and verify required Sprint 5.1 refresh and chart navigation components."""
     project_root = Path(__file__).resolve().parents[1]
     source_root = project_root / "src"
     required_files = [
@@ -56,6 +57,10 @@ def main() -> int:
     )
     if "sentinel_chart_runtime.js" not in html_resource or "window.SentinelChart" not in runtime_resource:
         print("Embedded chart resources failed validation.", file=sys.stderr)
+        return 1
+    required_runtime_markers = ["mousedown", "wheel", "dblclick", "offsetFromRight", "resetViewToLatest"]
+    if any(marker not in runtime_resource for marker in required_runtime_markers):
+        print("Chart navigation runtime validation failed.", file=sys.stderr)
         return 1
 
     compiled = compileall.compile_dir(str(source_root), quiet=1)
@@ -126,8 +131,11 @@ def main() -> int:
     if not config.market_data.auto_refresh_enabled:
         print("Market refresh configuration should be enabled by default for Sprint 5.", file=sys.stderr)
         return 1
-    if config.market_data.refresh_interval_for("M5") < 1:
-        print("Market refresh interval validation failed.", file=sys.stderr)
+    if config.market_data.refresh_interval_for("M5") != 1:
+        print("M5 refresh interval must be one second for Sprint 5.1.", file=sys.stderr)
+        return 1
+    if any(interval != 1 for interval in config.market_data.refresh_intervals_seconds.values()):
+        print("All packaged refresh intervals must default to one second for Sprint 5.1.", file=sys.stderr)
         return 1
 
     refresh_service_resource = (source_root / "sentinel_ai" / "market_data" / "market_refresh_service.py").read_text(
@@ -161,7 +169,8 @@ def main() -> int:
 
     print(
         "Sprint validation passed: source compiled, resources verified, config loaded, "
-        "MT5 mapping available, market feed conversion validated, chart assets ready, live refresh configured."
+        "MT5 mapping available, market feed conversion validated, chart assets ready, "
+        "one-second live refresh configured, chart navigation ready."
     )
     return 0
 

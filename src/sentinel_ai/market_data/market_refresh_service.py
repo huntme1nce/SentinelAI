@@ -2,11 +2,12 @@
 MODULE: MKT-004
 FILE: MKT-004-001
 Module Name: Market Refresh Service
-Version: 0.5.0
+Version: 0.5.1
 Purpose: Runs a safe timed market-data refresh loop and emits validated snapshots to application consumers.
 Dependencies: logging, PySide6.QtCore, sentinel_ai.market_data, sentinel_ai.models.market
 Change History:
 - 0.5.0: Added live market refresh service for periodic validated candle updates without trading logic.
+- 0.5.1: Supported one-second configuration defaults without changing service boundaries.
 """
 
 from __future__ import annotations
