@@ -2,7 +2,7 @@
 MODULE: CFG-001
 FILE: CFG-001-002
 Module Name: Configuration Service
-Version: 0.5.1
+Version: 0.6.0
 Purpose: Loads, persists, and validates JSON configuration for Sentinel AI.
 Dependencies: copy, json, pathlib, shutil, sentinel_ai.config.config_schema, sentinel_ai.core.constants, sentinel_ai.utils.paths
 Change History:
@@ -11,6 +11,7 @@ Change History:
 - 0.3.0: Preserved backward-compatible configuration merge for Sprint 3 market_data keys.
 - 0.4.0: Preserved configuration merge behavior for Sprint 4 chart resources.
 - 0.5.1: Added targeted configuration migration for one-second refresh defaults.
+- 0.6.0: Added active trading-symbol persistence for symbol management.
 """
 
 from __future__ import annotations
@@ -48,6 +49,18 @@ class ConfigService:
         if migrated_payload != user_payload:
             self._write_json(self._config_path, migrated_payload)
         return SentinelConfig.from_dict(migrated_payload)
+
+
+    def update_trading_symbol(self, symbol: str) -> None:
+        """Persist the selected trading symbol without resetting unrelated user settings."""
+        clean_symbol = str(symbol).strip()
+        if not clean_symbol:
+            raise ValueError("Trading symbol cannot be empty.")
+        self._ensure_config_file_exists()
+        payload = self._read_json(self._config_path)
+        trading_payload = payload.setdefault("trading", {})
+        trading_payload["symbol"] = clean_symbol
+        self._write_json(self._config_path, payload)
 
     def _ensure_config_file_exists(self) -> None:
         """Create the writable configuration file from packaged defaults when absent."""

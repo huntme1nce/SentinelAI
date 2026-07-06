@@ -2,8 +2,8 @@
 MODULE: SVC-001
 FILE: SVC-001-001
 Module Name: Service Contracts
-Version: 0.5.0
-Purpose: Defines replaceable service interfaces for analysis, market data, prediction, trading, learning, and notifications.
+Version: 0.6.0
+Purpose: Defines replaceable service interfaces for analysis, market data, symbol management, prediction, trading, learning, and notifications.
 Dependencies: abc, pandas, sentinel_ai.models.market, sentinel_ai.models.prediction
 Change History:
 - 0.1.0: Added runtime service contracts for modular expansion.
@@ -11,6 +11,7 @@ Change History:
 - 0.3.0: Added candle feed contract for validated market data snapshots.
 - 0.4.0: Preserved service contracts for chart rendering sprint without adding trading execution.
 - 0.5.0: Added market refresh service contract for live feed updates.
+- 0.6.0: Added symbol catalog and search methods to the market data service contract.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from sentinel_ai.models.market import (
     Mt5ConnectionStatus,
     SymbolValidationResult,
 )
+from sentinel_ai.models.symbol import SymbolCatalogItem
 from sentinel_ai.models.prediction import PredictionRecord
 
 
@@ -55,6 +57,17 @@ class MarketDataServiceContract(ABC):
     def validate_symbol(self, symbol: str) -> SymbolValidationResult:
         """Validate whether a symbol is available and usable."""
         raise NotImplementedError("MarketDataServiceContract.validate_symbol must be implemented by a market data adapter.")
+
+
+    @abstractmethod
+    def list_symbols(self) -> tuple[SymbolCatalogItem, ...]:
+        """Return all symbols available from the active market data source."""
+        raise NotImplementedError("MarketDataServiceContract.list_symbols must be implemented by a market data adapter.")
+
+    @abstractmethod
+    def search_symbols(self, query: str, limit: int) -> tuple[SymbolCatalogItem, ...]:
+        """Return ranked symbols matching a user or configuration query."""
+        raise NotImplementedError("MarketDataServiceContract.search_symbols must be implemented by a market data adapter.")
 
     @abstractmethod
     def fetch_ohlc(self, symbol: str, timeframe: str, bar_count: int | None = None) -> pd.DataFrame:

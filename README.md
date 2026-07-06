@@ -1,171 +1,116 @@
-<!--
-MODULE: DOC-001
-FILE: DOC-001-001
-Module Name: Project README
-Version: 0.5.1
-Purpose: Documents Sentinel AI setup, sprint scope, validation, chart rendering, one-second live refresh, chart navigation, and build instructions.
-Dependencies: Markdown
-Change History:
-- 0.1.0: Added Sprint 1 documentation.
-- 0.2.0: Added Sprint 2 MT5 connection notes.
-- 0.3.0: Added Sprint 3 market data feed notes and NumPy compatibility guidance.
-- 0.4.0: Added Sprint 4 live chart rendering notes.
-- 0.5.0: Added Sprint 5 live market refresh engine notes.
-- 0.5.1: Added one-second refresh defaults, chart drag/zoom notes, and targeted config migration details.
--->
-
 # Sentinel AI
 
-Sentinel AI is a professional Windows desktop trading workstation foundation built with PySide6, SQLite, JSON configuration, MT5 market-data integration, validated market feed services, embedded chart rendering, live chart refresh, and service-based architecture.
+## Sprint 6: Symbol Management Foundation
 
-## Current Sprint
+Sentinel AI is a professional Windows desktop application for MT5 market analysis, statistical prediction tracking, and future controlled trading execution.
 
-Version: 0.5.1
+Sprint 6 adds broker/account-specific symbol management. Sentinel AI is no longer hard-locked to `GOLDm#`. It now reads the active MT5 account symbol catalog, validates the configured symbol, attempts safe alias resolution when the configured symbol is unavailable, lets the user select or type a broker symbol in the toolbar, persists the selected symbol to the writable JSON config, reloads candles after a symbol change, and restarts live refresh safely.
 
-Sprint 5.1 patches the Sprint 5 Live Market Refresh Engine by changing default refresh cadence to one second and adding chart navigation controls while preserving the existing GUI layout and service boundaries.
+## Current Capability
 
-## Completed Sprint Scope
+- PySide6 Windows desktop shell
+- Manual welcome window with Proverbs 13:11
+- SQLite database initialization
+- Prediction repository foundation
+- MT5 read-only connection foundation
+- MT5 account/session status
+- Broker symbol catalog loading
+- Active symbol validation and persistence
+- Symbol alias fallback for common gold symbols such as `XAUUSD`, `GOLD`, `XAUUSDm`, and `GOLDm#`
+- Validated MT5 candle feed
+- Embedded TradingView Lightweight Charts rendering
+- One-second live market refresh
+- Chart drag left/right, mouse-wheel zoom, and double-click reset to latest
+- Statistics panel backed by persisted prediction records
 
-### Sprint 1: Foundation
+## Not Included Yet
 
-- Application entry point
-- Welcome window with Proverbs 13:11
-- Main application shell using the approved layout
-- JSON configuration service
-- Logging service
-- SQLite database service
-- Permanent prediction repository
-- Service contracts
-- PyInstaller-compatible path handling
-- Windows build command
+Sprint 6 does not include BUY/SELL prediction logic, confidence scoring, learning adjustments, manual trade execution, or auto trading. Manual Trade and Auto Trade remain disabled until the trading service sprint.
 
-### Sprint 2: MT5 Connection Foundation
+## Installation
 
-- Isolated MT5 market-data service
-- MT5 terminal initialization
-- Connection status reporting
-- Read-only account snapshot model
-- Symbol validation and Market Watch selection
-- Timeframe mapping
-- Safe OHLCV data fetcher
-- Configuration migration for existing user configs
-
-### Sprint 3: Market Data Feed Foundation
-
-- Validated market data feed service
-- Canonical OHLCV candle validation
-- Immutable market data snapshot model
-- TradingView Lightweight Charts-compatible candle payload preparation
-- Startup candle loading after successful MT5 connection
-- Timeframe-change candle reload using the selected timeframe
-- Improved MT5 import diagnostics
-- NumPy pinned to `1.26.4` for MetaTrader5 binary compatibility
-
-### Sprint 4: Live Chart Rendering
-
-- Embedded chart web view inside the existing chart panel
-- Local packaged chart resources under `src/sentinel_ai/resources/chart`
-- Live candlestick rendering from validated Sprint 3 OHLCV snapshots
-- Timeframe-change chart refresh using the selected timeframe
-- Crosshair and latest-price display inside the chart runtime
-- PyInstaller hidden imports for Qt WebEngine chart rendering
-- No prediction logic
-- No trade execution logic
-- No GUI layout redesign
-
-### Sprint 5: Live Market Refresh Engine
-
-- Service-driven refresh timer for validated MT5 candle snapshots
-- Automatic chart updates after startup
-- Timeframe-specific refresh intervals in JSON configuration
-- Safe refresh restart when the selected timeframe changes
-- Non-destructive status bar updates for live refresh events
-- Refresh failure handling without closing the app or replacing the chart layout
-- No prediction logic
-- No trade execution logic
-- No GUI layout redesign
-
-### Sprint 5.1: Refresh Timing and Chart Navigation Patch
-
-- Default refresh interval changed to one second for all supported configured timeframes
-- Existing writable user configs from versions below `0.5.1` receive the new one-second interval migration automatically
-- Chart supports left/right dragging to review previous candles
-- Chart supports mouse-wheel zoom
-- Chart preserves historical review position during live refresh instead of snapping back to the latest candle
-- Double-clicking the chart resets view and zoom back to the latest candle
-- PowerShell build script and PyInstaller spec comment formatting corrected for Windows standalone compatibility
-- No prediction logic
-- No trade execution logic
-- No GUI layout redesign
-
-Trade execution, prediction generation, and learning adjustments are intentionally outside Sprint 5.1 scope.
-
-## Run Locally
+Use Python 3.12 on Windows.
 
 ```powershell
-py -3.12 -m venv .venv
+cd D:\projects\sentinelai
 .\.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip setuptools wheel
 python -m pip install -r requirements.txt
-$env:PYTHONPATH="src"
-python -m sentinel_ai.main
 ```
 
-## Validate Sprint
+## Validation
 
 ```powershell
-$env:PYTHONPATH="src"
-python scripts/validate_sprint.py
+python scripts\validate_sprint.py
 ```
 
 Expected result:
 
 ```text
-Sprint validation passed: source compiled, resources verified, config loaded, MT5 mapping available, market feed conversion validated, chart assets ready, one-second live refresh configured, chart navigation ready.
+Sprint validation passed: source compiled, resources verified, config loaded, MT5 mapping available, market feed conversion validated, chart assets ready, one-second live refresh configured, chart navigation ready, symbol management ready.
 ```
 
-## Build EXE
+## Run
+
+```powershell
+$env:PYTHONPATH="src"
+python -m sentinel_ai.main
+```
+
+## Symbol Management Behavior
+
+At startup, Sentinel AI performs this safe sequence:
+
+1. Connect to MT5.
+2. Load the active account symbol catalog.
+3. Validate the configured symbol from JSON.
+4. Use it if available and visible.
+5. If unavailable, search preferred aliases.
+6. Auto-resolve to the first usable broker symbol when enabled.
+7. Persist the active symbol to the writable config.
+8. Load candles and start refresh only after symbol validation succeeds.
+
+The toolbar symbol field is editable. You may select a listed broker symbol or type a broker-specific symbol such as `XAUUSD`, `XAUUSDm`, `EURUSD`, or another symbol available in the active MT5 account.
+
+## Configuration
+
+Packaged defaults are stored in:
+
+```text
+src/sentinel_ai/resources/config/default_config.json
+```
+
+Writable user config is created at runtime and is not reset during sprint upgrades.
+
+New Sprint 6 config section:
+
+```json
+"symbol_management": {
+  "auto_resolve_enabled": true,
+  "preferred_aliases": [
+    "GOLDm#",
+    "XAUUSD",
+    "GOLD",
+    "XAUUSDm",
+    "XAUUSD#",
+    "GOLDm",
+    "GOLDmicro"
+  ],
+  "toolbar_max_symbols": 5000
+}
+```
+
+## Build
 
 ```powershell
 .\build_windows.ps1
 ```
 
-The build output is created under `dist\SentinelAI`.
+The project remains PyInstaller-compatible and Windows standalone compatible.
 
-## MT5 Notes
+## Git
 
-- Install and log in to your broker's MT5 terminal before starting Sentinel AI.
-- The configured default symbol is `GOLDm#`.
-- If your broker uses a different symbol name, update the writable config file under `%LOCALAPPDATA%\SentinelAI\config\config.json`.
-- Sprint 5.1 is read-only for market data and does not place trades.
-- Keep `numpy==1.26.4` unless MT5 package compatibility is verified against a newer version.
+Sprint 6 stable commit:
 
-## Live Refresh Notes
-
-Default refresh intervals are configured under `market_data.refresh_intervals_seconds`.
-
-Sprint 5.1 default:
-
-- `M1`: 1 second
-- `M5`: 1 second
-- `M15`: 1 second
-- `M30`: 1 second
-- `H1`: 1 second
-- `H4`: 1 second
-- `D1`: 1 second
-- `DEFAULT`: 1 second
-
-The GUI does not call MT5 directly. The live chart receives validated snapshots from `MarketRefreshService` through application-level signal handling.
-
-## Chart Navigation Notes
-
-- Drag left or right on the chart to move through previous candles.
-- Use the mouse wheel to zoom in or zoom out.
-- While reviewing older candles, live refresh keeps your review position instead of forcing the latest candle view.
-- Double-click the chart to reset to the latest candle and default zoom.
-
-## Chart Responsibility Notes
-
-- The chart panel renders only validated market-feed candles.
-- The GUI does not calculate entries, confidence, trend, support, resistance, or trade signals.
-- Chart rendering is isolated from MT5, trading, database, prediction, and learning services.
+```text
+Sprint 6 symbol management foundation
+```

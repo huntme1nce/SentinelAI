@@ -3,20 +3,21 @@
     "module_id": "CFG-003",
     "file_id": "CFG-003-001",
     "module_name": "Default Configuration Resource",
-    "version": "0.5.1",
-    "purpose": "Provides packaged default Sentinel AI configuration values, including one-second live market refresh settings.",
+    "version": "0.6.0",
+    "purpose": "Provides packaged default Sentinel AI configuration values, including one-second live refresh and broker/account-specific symbol management settings.",
     "change_history": [
       "0.1.0: Added packaged defaults for Sprint 1 foundation.",
       "0.2.0: Added MT5 connection defaults.",
       "0.3.0: Added market data feed defaults and application version update.",
       "0.4.0: Added live chart rendering resource defaults and application version update.",
       "0.5.0: Added live market refresh defaults and application version update.",
-      "0.5.1: Changed supported timeframe refresh defaults to one second for tighter MT5 synchronization."
+      "0.5.1: Changed supported timeframe refresh defaults to one second for tighter MT5 synchronization.",
+      "0.6.0: Added symbol management defaults for broker/account-specific symbol resolution and selection."
     ]
   },
   "application": {
     "name": "Sentinel AI",
-    "version": "0.5.1",
+    "version": "0.6.0",
     "environment": "production"
   },
   "trading": {
@@ -62,5 +63,18 @@
       "D1": 1,
       "DEFAULT": 1
     }
+  },
+  "symbol_management": {
+    "auto_resolve_enabled": true,
+    "preferred_aliases": [
+      "GOLDm#",
+      "XAUUSD",
+      "GOLD",
+      "XAUUSDm",
+      "XAUUSD#",
+      "GOLDm",
+      "GOLDmicro"
+    ],
+    "toolbar_max_symbols": 5000
   }
 }

@@ -2,7 +2,7 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-Version: 0.5.1
+Version: 0.6.0
 Purpose: Defines validated configuration models for Sentinel AI.
 Dependencies: dataclasses, typing
 Change History:
@@ -12,6 +12,7 @@ Change History:
 - 0.4.0: Preserved schema for Sprint 4 chart rendering without adding trading settings.
 - 0.5.0: Added market-data live refresh configuration with timeframe-specific intervals.
 - 0.5.1: Preserved validated refresh configuration while allowing one-second synchronization defaults.
+- 0.6.0: Added symbol-management configuration for account-specific MT5 symbol resolution.
 """
 
 from __future__ import annotations
@@ -59,6 +60,31 @@ class TradingConfig:
             one_trade_at_a_time=bool(data["one_trade_at_a_time"]),
             minimum_confidence=float(data["minimum_confidence"]),
             default_risk_reward=float(data["default_risk_reward"]),
+        )
+
+
+@dataclass(frozen=True)
+class SymbolManagementConfig:
+    """Represent broker/account-specific symbol management settings."""
+
+    auto_resolve_enabled: bool
+    preferred_aliases: tuple[str, ...]
+    toolbar_max_symbols: int
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "SymbolManagementConfig":
+        """Create a SymbolManagementConfig from a dictionary."""
+        raw_aliases = data["preferred_aliases"]
+        if not isinstance(raw_aliases, list):
+            raise ValueError("symbol_management.preferred_aliases must be a JSON array.")
+        aliases = tuple(str(alias).strip() for alias in raw_aliases if str(alias).strip())
+        toolbar_max_symbols = int(data["toolbar_max_symbols"])
+        if toolbar_max_symbols < 1:
+            raise ValueError("symbol_management.toolbar_max_symbols must be greater than zero.")
+        return cls(
+            auto_resolve_enabled=bool(data["auto_resolve_enabled"]),
+            preferred_aliases=aliases,
+            toolbar_max_symbols=toolbar_max_symbols,
         )
 
 
@@ -177,6 +203,7 @@ class SentinelConfig:
     application: ApplicationConfig
     trading: TradingConfig
     mt5: Mt5Config
+    symbol_management: SymbolManagementConfig
     market_data: MarketDataConfig
     database: DatabaseConfig
     logging: LoggingConfig
@@ -189,6 +216,7 @@ class SentinelConfig:
             application=ApplicationConfig.from_dict(data["application"]),
             trading=TradingConfig.from_dict(data["trading"]),
             mt5=Mt5Config.from_dict(data["mt5"]),
+            symbol_management=SymbolManagementConfig.from_dict(data["symbol_management"]),
             market_data=MarketDataConfig.from_dict(data["market_data"]),
             database=DatabaseConfig.from_dict(data["database"]),
             logging=LoggingConfig.from_dict(data["logging"]),

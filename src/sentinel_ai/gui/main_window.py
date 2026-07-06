@@ -2,8 +2,8 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-Version: 0.5.1
-Purpose: Provides the Sentinel AI main shell layout without embedding trading or analysis logic.
+Version: 0.6.0
+Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, or analysis logic.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models.market
 Change History:
 - 0.1.0: Added approved main GUI layout with toolbar, chart, prediction panel, statistics panel, and status bar.
@@ -11,6 +11,7 @@ Change History:
 - 0.4.0: Routed validated snapshots to the embedded chart panel without changing layout.
 - 0.5.0: Added GUI-only methods for live market snapshot and runtime status updates.
 - 0.5.1: Preserved layout while live refresh cadence and chart navigation behavior were patched.
+- 0.6.0: Added GUI-only symbol selection controls and symbol status methods.
 """
 
 from __future__ import annotations
@@ -43,6 +44,7 @@ class MainWindow(QMainWindow):
     auto_trade_toggled = Signal(bool)
     settings_requested = Signal()
     timeframe_changed = Signal(str)
+    symbol_changed = Signal(str)
 
     def __init__(self, config: SentinelConfig) -> None:
         """Initialize the main window from validated application configuration."""
@@ -52,6 +54,7 @@ class MainWindow(QMainWindow):
         self._prediction_panel = PredictionPanel()
         self._statistics_panel = StatisticsPanel()
         self._auto_trade_enabled = False
+        self._last_emitted_symbol = config.trading.symbol
         self.setWindowTitle(config.application.name)
         self.resize(config.ui.default_width, config.ui.default_height)
         self._build_toolbar()
@@ -69,6 +72,22 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(self._trend_label)
         toolbar.addSeparator()
         toolbar.addWidget(self._probability_label)
+        toolbar.addSeparator()
+
+        symbol_label = QLabel("Symbol:")
+        self._symbol_combo = QComboBox()
+        self._symbol_combo.setEditable(True)
+        self._symbol_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self._symbol_combo.setMinimumWidth(155)
+        self._symbol_combo.setMaxVisibleItems(20)
+        self._symbol_combo.addItem(self._config.trading.symbol)
+        self._symbol_combo.setCurrentText(self._config.trading.symbol)
+        self._symbol_combo.activated.connect(lambda _index: self._emit_symbol_change_request())
+        line_edit = self._symbol_combo.lineEdit()
+        if line_edit is not None:
+            line_edit.editingFinished.connect(self._emit_symbol_change_request)
+        toolbar.addWidget(symbol_label)
+        toolbar.addWidget(self._symbol_combo)
         toolbar.addSeparator()
 
         timeframe_label = QLabel("Timeframe:")
@@ -119,11 +138,55 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status_bar)
         status_bar.showMessage("Sentinel AI foundation initialized.")
 
+
+    def _emit_symbol_change_request(self) -> None:
+        """Emit a user symbol-change request without validating symbols in the GUI."""
+        requested_symbol = self._symbol_combo.currentText().strip()
+        if not requested_symbol or requested_symbol == self._last_emitted_symbol:
+            return
+        self._last_emitted_symbol = requested_symbol
+        self.symbol_changed.emit(requested_symbol)
+
     def _handle_auto_trade_toggled(self, enabled: bool) -> None:
         """Emit an auto-trade toggle request without executing trades in the GUI."""
         self._auto_trade_enabled = enabled
         self._auto_trade_button.setText("Auto Trade: ON" if enabled else "Auto Trade: OFF")
         self.auto_trade_toggled.emit(enabled)
+
+
+    def set_symbol_options(self, symbols: tuple[str, ...], active_symbol: str) -> None:
+        """Display broker symbols supplied by application services without validating them in the GUI."""
+        previous_signal_state = self._symbol_combo.blockSignals(True)
+        try:
+            self._symbol_combo.clear()
+            unique_symbols: list[str] = []
+            for symbol in symbols:
+                clean_symbol = str(symbol).strip()
+                if clean_symbol and clean_symbol not in unique_symbols:
+                    unique_symbols.append(clean_symbol)
+            clean_active_symbol = str(active_symbol).strip()
+            if clean_active_symbol and clean_active_symbol not in unique_symbols:
+                unique_symbols.insert(0, clean_active_symbol)
+            self._symbol_combo.addItems(unique_symbols)
+            if clean_active_symbol:
+                self._symbol_combo.setCurrentText(clean_active_symbol)
+                self._last_emitted_symbol = clean_active_symbol
+        finally:
+            self._symbol_combo.blockSignals(previous_signal_state)
+
+    def update_active_symbol(self, symbol: str) -> None:
+        """Update the displayed active symbol after service-level validation."""
+        clean_symbol = str(symbol).strip()
+        if not clean_symbol:
+            return
+        previous_signal_state = self._symbol_combo.blockSignals(True)
+        try:
+            if self._symbol_combo.findText(clean_symbol) < 0:
+                self._symbol_combo.insertItem(0, clean_symbol)
+            self._symbol_combo.setCurrentText(clean_symbol)
+            self._last_emitted_symbol = clean_symbol
+        finally:
+            self._symbol_combo.blockSignals(previous_signal_state)
 
     def update_statistics_panel(self, statistics: dict[str, object], learning_status: str) -> None:
         """Update the statistics dashboard using values supplied by application services."""

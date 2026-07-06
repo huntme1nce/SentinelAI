@@ -2,8 +2,8 @@
 MODULE: OPS-001
 FILE: OPS-001-001
 Module Name: Sprint Validator
-Version: 0.5.1
-Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, one-second refresh configuration, and chart navigation assets.
+Version: 0.6.0
+Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, one-second refresh configuration, chart navigation assets, and symbol management.
 Dependencies: compileall, datetime, json, logging, pathlib, sys, pandas
 Change History:
 - 0.1.0: Added compile and resource validation for stable milestone handoff.
@@ -12,6 +12,7 @@ Change History:
 - 0.4.0: Added Sprint 4 embedded chart resource and payload serialization validation.
 - 0.5.0: Added Sprint 5 live refresh service file and configuration validation.
 - 0.5.1: Added validation for one-second refresh defaults and chart navigation runtime controls.
+- 0.6.0: Added validation for symbol catalog models, contract methods, resolution service, and config persistence.
 """
 
 from __future__ import annotations
@@ -41,6 +42,8 @@ def main() -> int:
         source_root / "sentinel_ai" / "market_data" / "lightweight_chart_feed.py",
         source_root / "sentinel_ai" / "market_data" / "market_data_feed.py",
         source_root / "sentinel_ai" / "market_data" / "market_refresh_service.py",
+        source_root / "sentinel_ai" / "symbols" / "symbol_management_service.py",
+        source_root / "sentinel_ai" / "models" / "symbol.py",
         project_root / "SentinelAI.spec",
         project_root / "requirements.txt",
     ]
@@ -74,8 +77,10 @@ def main() -> int:
     from sentinel_ai.market_data.lightweight_chart_feed import LightweightChartFeedAdapter
     from sentinel_ai.market_data.market_data_feed import MarketDataFeedService
     from sentinel_ai.models.market import Mt5ConnectionStatus, SymbolValidationResult
+    from sentinel_ai.models.symbol import SymbolCatalogItem
     from sentinel_ai.mt5.timeframe_mapper import Mt5TimeframeMapper
     from sentinel_ai.services.contracts import MarketDataServiceContract
+    from sentinel_ai.symbols.symbol_management_service import SymbolManagementService
 
     class _DeterministicMarketDataGateway(MarketDataServiceContract):
         """Provide deterministic OHLCV data for Sprint validation without requiring MT5."""
@@ -97,8 +102,43 @@ def main() -> int:
             return None
 
         def validate_symbol(self, symbol: str) -> SymbolValidationResult:
-            """Return a valid symbol result for deterministic validation."""
-            return SymbolValidationResult(symbol=symbol, valid=True, visible=True, selected=True, message="Validation symbol.")
+            """Return a valid symbol result only when the symbol exists in the validation catalog."""
+            if symbol in {"XAUUSDm", "EURUSD"}:
+                return SymbolValidationResult(symbol=symbol, valid=True, visible=True, selected=True, message="Validation symbol.")
+            return SymbolValidationResult(symbol=symbol, valid=False, visible=False, selected=False, message="Validation symbol missing.")
+
+        def list_symbols(self) -> tuple[SymbolCatalogItem, ...]:
+            """Return deterministic symbols for symbol-management validation."""
+            return (
+                SymbolCatalogItem(
+                    symbol="XAUUSDm",
+                    description="Gold versus US Dollar",
+                    path="Metals",
+                    visible=True,
+                    digits=2,
+                    point=0.01,
+                    currency_base="XAU",
+                    currency_profit="USD",
+                    trade_mode=4,
+                ),
+                SymbolCatalogItem(
+                    symbol="EURUSD",
+                    description="Euro versus US Dollar",
+                    path="Forex/Majors",
+                    visible=True,
+                    digits=5,
+                    point=0.00001,
+                    currency_base="EUR",
+                    currency_profit="USD",
+                    trade_mode=4,
+                ),
+            )
+
+        def search_symbols(self, query: str, limit: int) -> tuple[SymbolCatalogItem, ...]:
+            """Return deterministic symbol search results."""
+            clean_query = str(query).upper()
+            matches = [item for item in self.list_symbols() if clean_query in item.symbol.upper()]
+            return tuple(matches[: int(limit)])
 
         def fetch_ohlc(self, symbol: str, timeframe: str, bar_count: int | None = None) -> pd.DataFrame:
             """Return deterministic OHLCV candles using the canonical schema."""
@@ -151,10 +191,30 @@ def main() -> int:
         chart_feed_adapter=LightweightChartFeedAdapter(),
         logger=logging.getLogger("sentinel_ai.validation"),
     )
-    snapshot = feed_service.load_snapshot("GOLDm#", "M5", 3)
+    snapshot = feed_service.load_snapshot("XAUUSDm", "M5", 3)
     chart_payload = feed_service.chart_payload()
     if snapshot.candle_count != 3 or len(chart_payload) != 3:
         print("Market data feed validation failed.", file=sys.stderr)
+        return 1
+
+
+    symbol_service = SymbolManagementService(
+        market_data_gateway=_DeterministicMarketDataGateway(),
+        config_service=ConfigService(config_path=project_root / ".validation_symbol_config.json"),
+        logger=logging.getLogger("sentinel_ai.validation.symbols"),
+    )
+    symbol_service.load_available_symbols()
+    resolution = symbol_service.resolve_startup_symbol(
+        configured_symbol="GOLDm#",
+        preferred_aliases=("XAUUSD", "XAUUSDm"),
+        auto_resolve_enabled=True,
+    )
+    if not resolution.resolved or resolution.active_symbol != "XAUUSDm":
+        print("Symbol management resolution validation failed.", file=sys.stderr)
+        return 1
+    direct_resolution = symbol_service.activate_symbol("EURUSD")
+    if not direct_resolution.resolved or direct_resolution.active_symbol != "EURUSD":
+        print("Symbol activation validation failed.", file=sys.stderr)
         return 1
 
     try:
@@ -166,11 +226,14 @@ def main() -> int:
     validation_config = project_root / ".validation_config.json"
     if validation_config.exists():
         validation_config.unlink()
+    validation_symbol_config = project_root / ".validation_symbol_config.json"
+    if validation_symbol_config.exists():
+        validation_symbol_config.unlink()
 
     print(
         "Sprint validation passed: source compiled, resources verified, config loaded, "
         "MT5 mapping available, market feed conversion validated, chart assets ready, "
-        "one-second live refresh configured, chart navigation ready."
+        "one-second live refresh configured, chart navigation ready, symbol management ready."
     )
     return 0
 

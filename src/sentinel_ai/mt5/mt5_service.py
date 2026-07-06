@@ -2,12 +2,13 @@
 MODULE: MT5-002
 FILE: MT5-002-001
 Module Name: MetaTrader 5 Service
-Version: 0.3.0
+Version: 0.6.0
 Purpose: Provides isolated, read-only MT5 connection and market-data access for Sentinel AI.
 Dependencies: datetime, logging, pandas, sentinel_ai.config, sentinel_ai.models.market, sentinel_ai.mt5
 Change History:
 - 0.2.0: Added connection status, account snapshot, symbol validation, and OHLC data fetching without trade execution.
 - 0.3.0: Improved MT5 import diagnostics and preserved normalized candle output for market feed service.
+- 0.6.0: Added account-specific symbol catalog listing and symbol search support.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ import pandas as pd
 
 from sentinel_ai.config.config_schema import Mt5Config
 from sentinel_ai.models.market import Mt5AccountSnapshot, Mt5ConnectionStatus, SymbolValidationResult
+from sentinel_ai.models.symbol import SymbolCatalogItem
 from sentinel_ai.mt5.exceptions import Mt5NotConnectedError, Mt5ServiceError
 from sentinel_ai.mt5.timeframe_mapper import Mt5TimeframeMapper
 
@@ -126,6 +128,32 @@ class MetaTrader5Service:
             spread=int(symbol_info.spread),
         )
 
+
+    def list_symbols(self) -> tuple[SymbolCatalogItem, ...]:
+        """Return all broker symbols available from the active MT5 account."""
+        self._require_connection()
+        raw_symbols = self._mt5.symbols_get()
+        if raw_symbols is None:
+            raise Mt5ServiceError(f"MT5 returned no symbol catalog: {self._mt5.last_error()}")
+        catalog = tuple(self._to_symbol_catalog_item(raw_symbol) for raw_symbol in raw_symbols)
+        return tuple(sorted(catalog, key=lambda item: item.symbol.upper()))
+
+    def search_symbols(self, query: str, limit: int) -> tuple[SymbolCatalogItem, ...]:
+        """Return broker symbols whose name, description, or path contains the query."""
+        clean_query = str(query).strip().upper()
+        clean_limit = max(0, int(limit))
+        if clean_limit == 0:
+            return ()
+        catalog = self.list_symbols()
+        if not clean_query:
+            return catalog[:clean_limit]
+        matches = []
+        for item in catalog:
+            searchable = f"{item.symbol} {item.description} {item.path}".upper()
+            if clean_query in searchable:
+                matches.append(item)
+        return tuple(matches[:clean_limit])
+
     def fetch_ohlc(self, symbol: str, timeframe: str, bar_count: int | None = None) -> pd.DataFrame:
         """Fetch OHLCV bars from MT5 as a normalized pandas DataFrame."""
         self._require_connection()
@@ -145,6 +173,23 @@ class MetaTrader5Service:
         data_frame["time"] = pd.to_datetime(data_frame["time"], unit="s", utc=True)
         ordered_columns = ["time", "open", "high", "low", "close", "tick_volume", "spread", "real_volume"]
         return data_frame.loc[:, ordered_columns]
+
+
+    @staticmethod
+    def _to_symbol_catalog_item(raw_symbol: Any) -> SymbolCatalogItem:
+        """Convert an MT5 symbol_info tuple into an immutable catalog item."""
+        point_value = getattr(raw_symbol, "point", None)
+        return SymbolCatalogItem(
+            symbol=str(getattr(raw_symbol, "name", "")),
+            description=str(getattr(raw_symbol, "description", "") or ""),
+            path=str(getattr(raw_symbol, "path", "") or ""),
+            visible=bool(getattr(raw_symbol, "visible", False)),
+            digits=int(getattr(raw_symbol, "digits", 0)) if getattr(raw_symbol, "digits", None) is not None else None,
+            point=float(point_value) if point_value is not None else None,
+            currency_base=str(getattr(raw_symbol, "currency_base", "") or "") or None,
+            currency_profit=str(getattr(raw_symbol, "currency_profit", "") or "") or None,
+            trade_mode=int(getattr(raw_symbol, "trade_mode", 0)) if getattr(raw_symbol, "trade_mode", None) is not None else None,
+        )
 
     def _initialize_terminal(self, mt5_module: Any) -> bool:
         """Initialize MT5 using configured terminal path when provided."""
