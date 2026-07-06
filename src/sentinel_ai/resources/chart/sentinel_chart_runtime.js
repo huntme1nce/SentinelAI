@@ -2,13 +2,14 @@
 MODULE: CHART-002
 FILE: CHART-002-001
 Module Name: Sentinel Chart Runtime
-Version: 0.7.0
-Purpose: Renders validated candlestick data with controlled live updates, chart panning, zooming, review-state preservation, and market structure markers.
+Version: 0.8.0
+Purpose: Renders validated candlestick data with controlled live updates, chart panning, zooming, review-state preservation, market structure markers, and support/resistance zones.
 Dependencies: Browser Canvas API
 Change History:
 - 0.4.0: Added offline-safe candlestick renderer for the Sprint 4 embedded chart panel.
 - 0.5.1: Added drag-to-pan, mouse-wheel zoom, double-click reset, and chart-position preservation during live refresh.
 - 0.7.0: Added market structure marker and break-of-structure overlay rendering.
+- 0.8.0: Added support/resistance zone overlay rendering.
 */
 
 (function () {
@@ -39,6 +40,14 @@ Change History:
         bias: "-",
         summary: "",
         latestBreak: null,
+      },
+    },
+    supportResistance: {
+      zones: [],
+      metadata: {
+        summary: "",
+        nearestSupport: null,
+        nearestResistance: null,
       },
     },
     view: {
@@ -101,6 +110,21 @@ Change History:
     renderChart();
   }
 
+  function setSupportResistance(zones, metadata) {
+    const normalizedZones = Array.isArray(zones) ? zones : [];
+    state.supportResistance.zones = normalizedZones.filter(isValidSupportResistanceZone);
+    state.supportResistance.metadata = Object.assign({}, state.supportResistance.metadata, metadata || {});
+    renderChart();
+  }
+
+  function isValidSupportResistanceZone(zone) {
+    return zone &&
+      Number.isFinite(Number(zone.lowerPrice)) &&
+      Number.isFinite(Number(zone.upperPrice)) &&
+      Number(zone.upperPrice) >= Number(zone.lowerPrice) &&
+      (zone.kind === "SUPPORT" || zone.kind === "RESISTANCE");
+  }
+
   function isValidStructureMarker(marker) {
     return marker &&
       Number.isFinite(Number(marker.time)) &&
@@ -136,6 +160,7 @@ Change History:
     const priceRange = resolvePriceRange(visibleCandles);
 
     drawGrid(layout, priceRange);
+    drawSupportResistanceZones(layout, priceRange);
     drawCandles(layout, visibleCandles, priceRange);
     drawStructureMarkers(layout, visibleRange, priceRange);
     drawAxes(layout, visibleRange);
@@ -306,6 +331,50 @@ Change History:
   }
 
 
+
+  function drawSupportResistanceZones(layout, priceRange) {
+    if (!state.supportResistance.zones || state.supportResistance.zones.length === 0) {
+      return;
+    }
+
+    context.save();
+    context.font = "bold 11px Segoe UI, Arial";
+    context.textAlign = "left";
+    state.supportResistance.zones.forEach((zone) => {
+      const lower = Number(zone.lowerPrice);
+      const upper = Number(zone.upperPrice);
+      if (!Number.isFinite(lower) || !Number.isFinite(upper)) {
+        return;
+      }
+      const upperY = yForPrice(layout, priceRange, upper);
+      const lowerY = yForPrice(layout, priceRange, lower);
+      const top = Math.max(layout.plotTop, Math.min(upperY, lowerY));
+      const bottom = Math.min(layout.plotBottom, Math.max(upperY, lowerY));
+      if (bottom < layout.plotTop || top > layout.plotBottom) {
+        return;
+      }
+      const isSupport = zone.kind === "SUPPORT";
+      const fillColor = isSupport ? "rgba(94, 215, 255, 0.10)" : "rgba(255, 206, 92, 0.11)";
+      const lineColor = isSupport ? "rgba(94, 215, 255, 0.72)" : "rgba(255, 206, 92, 0.72)";
+      const label = String(zone.label || (isSupport ? "S" : "R"));
+      const labelText = `${label} ${formatPrice(zone.lowerPrice)}-${formatPrice(zone.upperPrice)} (${Number(zone.touchCount || 0)}x)`;
+
+      context.fillStyle = fillColor;
+      context.fillRect(layout.plotLeft, top, layout.plotWidth, Math.max(bottom - top, 2));
+      context.strokeStyle = lineColor;
+      context.lineWidth = 1;
+      context.setLineDash([6, 4]);
+      context.beginPath();
+      context.moveTo(layout.plotLeft, Math.round((top + bottom) / 2) + 0.5);
+      context.lineTo(layout.plotRight, Math.round((top + bottom) / 2) + 0.5);
+      context.stroke();
+      context.setLineDash([]);
+      context.fillStyle = lineColor;
+      context.fillText(labelText, layout.plotLeft + 10, Math.max(layout.plotTop + 12, top + 14));
+    });
+    context.restore();
+  }
+
   function drawStructureMarkers(layout, visibleRange, priceRange) {
     if (!state.structure.markers || state.structure.markers.length === 0) {
       return;
@@ -473,7 +542,9 @@ Change History:
     const zoom = `Zoom ${state.view.zoomScale.toFixed(2)}x`;
     const visibleText = `${visibleCandles.length}/${state.candles.length} visible`;
     const bias = state.structure.metadata.bias && state.structure.metadata.bias !== "-" ? ` | Structure: ${state.structure.metadata.bias}` : "";
-    setStatus(`${symbol} ${timeframe} | ${visibleText} | Latest: ${latestClose} | ${latestTime}${bias} | ${mode} | ${zoom}`);
+    const srCount = state.supportResistance.zones ? state.supportResistance.zones.length : 0;
+    const srText = srCount > 0 ? ` | S/R zones: ${srCount}` : "";
+    setStatus(`${symbol} ${timeframe} | ${visibleText} | Latest: ${latestClose} | ${latestTime}${bias}${srText} | ${mode} | ${zoom}`);
   }
 
   function formatPrice(price) {
@@ -601,6 +672,7 @@ Change History:
   window.SentinelChart = {
     setCandles: setCandles,
     setMarketStructure: setMarketStructure,
+    setSupportResistance: setSupportResistance,
     setStatus: setStatus,
     render: renderChart,
     resetViewToLatest: function () {

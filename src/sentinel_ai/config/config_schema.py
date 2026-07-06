@@ -2,8 +2,8 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-Version: 0.7.0
-Purpose: Defines validated configuration models for Sentinel AI, including analysis-engine settings.
+Version: 0.8.0
+Purpose: Defines validated configuration models for Sentinel AI, including modular analysis-engine settings.
 Dependencies: dataclasses, typing
 Change History:
 - 0.1.0: Added application, trading, database, logging, and UI configuration models.
@@ -14,6 +14,7 @@ Change History:
 - 0.5.1: Preserved validated refresh configuration while allowing one-second synchronization defaults.
 - 0.6.0: Added symbol-management configuration for account-specific MT5 symbol resolution.
 - 0.7.0: Added market structure engine configuration for Sprint 7 analysis foundation.
+- 0.8.0: Added support/resistance engine configuration for Sprint 8 analysis foundation.
 """
 
 from __future__ import annotations
@@ -189,6 +190,50 @@ class MarketStructureConfig:
 
 
 @dataclass(frozen=True)
+class SupportResistanceConfig:
+    """Represent support/resistance engine behavior settings."""
+
+    enabled: bool
+    lookback_candles: int
+    atr_period: int
+    zone_atr_multiplier: float
+    minimum_zone_width_price: float
+    min_touch_count: int
+    max_chart_zones: int
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "SupportResistanceConfig":
+        """Create a SupportResistanceConfig from a dictionary."""
+        lookback_candles = int(data["lookback_candles"])
+        atr_period = int(data["atr_period"])
+        zone_atr_multiplier = float(data["zone_atr_multiplier"])
+        minimum_zone_width_price = float(data["minimum_zone_width_price"])
+        min_touch_count = int(data["min_touch_count"])
+        max_chart_zones = int(data["max_chart_zones"])
+        if lookback_candles < 20:
+            raise ValueError("analysis.support_resistance.lookback_candles must be at least 20.")
+        if atr_period < 2:
+            raise ValueError("analysis.support_resistance.atr_period must be at least 2.")
+        if zone_atr_multiplier <= 0:
+            raise ValueError("analysis.support_resistance.zone_atr_multiplier must be greater than zero.")
+        if minimum_zone_width_price < 0:
+            raise ValueError("analysis.support_resistance.minimum_zone_width_price cannot be negative.")
+        if min_touch_count < 1:
+            raise ValueError("analysis.support_resistance.min_touch_count must be at least 1.")
+        if max_chart_zones < 1:
+            raise ValueError("analysis.support_resistance.max_chart_zones must be greater than zero.")
+        return cls(
+            enabled=bool(data["enabled"]),
+            lookback_candles=lookback_candles,
+            atr_period=atr_period,
+            zone_atr_multiplier=zone_atr_multiplier,
+            minimum_zone_width_price=minimum_zone_width_price,
+            min_touch_count=min_touch_count,
+            max_chart_zones=max_chart_zones,
+        )
+
+
+@dataclass(frozen=True)
 class DatabaseConfig:
     """Represent database file settings."""
 
@@ -243,6 +288,7 @@ class SentinelConfig:
     symbol_management: SymbolManagementConfig
     market_data: MarketDataConfig
     market_structure: MarketStructureConfig
+    support_resistance: SupportResistanceConfig
     database: DatabaseConfig
     logging: LoggingConfig
     ui: UiConfig
@@ -257,6 +303,7 @@ class SentinelConfig:
             symbol_management=SymbolManagementConfig.from_dict(data["symbol_management"]),
             market_data=MarketDataConfig.from_dict(data["market_data"]),
             market_structure=MarketStructureConfig.from_dict(data["analysis"]["market_structure"]),
+            support_resistance=SupportResistanceConfig.from_dict(data["analysis"]["support_resistance"]),
             database=DatabaseConfig.from_dict(data["database"]),
             logging=LoggingConfig.from_dict(data["logging"]),
             ui=UiConfig.from_dict(data["ui"]),

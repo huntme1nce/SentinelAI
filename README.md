@@ -1,10 +1,10 @@
 # Sentinel AI
 
-## Sprint 7: Market Structure Engine Foundation
+## Sprint 8: Support and Resistance Engine Foundation
 
 Sentinel AI is a professional Windows desktop application for MT5 market analysis, statistical prediction tracking, and future controlled trading execution.
 
-Sprint 7 adds the first read-only analysis engine: **Market Structure Engine**. It detects confirmed swing highs, confirmed swing lows, structural bias, and close-based break-of-structure context from validated MT5 candles. This sprint does not generate BUY/SELL predictions and does not place trades.
+Sprint 8 adds a read-only **Support and Resistance Engine**. It uses confirmed swing highs and swing lows from the Market Structure Engine to group nearby levels into ranked support/resistance zones, display them on the chart, and show nearest support/resistance context in the Current Prediction panel. This sprint does not generate BUY/SELL predictions and does not place trades.
 
 ## Current Capability
 
@@ -24,15 +24,23 @@ Sprint 7 adds the first read-only analysis engine: **Market Structure Engine**. 
 - Read-only Market Structure Engine
 - Swing High / Swing Low markers on the chart
 - Basic close-based BOS marker on the chart when structure breaks
+- Read-only Support and Resistance Engine
+- Ranked support/resistance zones on the chart
+- Nearest support/resistance context in the Current Prediction panel
 - Toolbar trend label updated from structure bias
-- Current Prediction panel remains WAIT while showing structure context only
+- Current Prediction panel remains WAIT while showing analysis context only
 - Statistics panel backed by persisted prediction records
 
-## Not Included Yet
+## What Sprint 8 Does Not Do
 
-Sprint 7 does not include BUY/SELL prediction logic, confidence scoring, liquidity engine, support/resistance engine, learning adjustments, manual trade execution, or auto trading. Manual Trade and Auto Trade remain disabled until the trading service sprint.
+- No BUY/SELL prediction generation
+- No confidence scoring
+- No learning adjustments
+- No manual trade placement
+- No auto trade execution
+- No GUI layout redesign
 
-## Installation
+## Setup
 
 Use Python 3.12 on Windows.
 
@@ -40,66 +48,30 @@ Use Python 3.12 on Windows.
 cd D:\projects\sentinelai
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-```
-
-## Validation
-
-```powershell
 python scripts\validate_sprint.py
 ```
 
-Expected result:
-
-```text
-Sprint validation passed: source compiled, resources verified, config loaded, MT5 mapping available, market feed conversion validated, chart assets ready, one-second live refresh configured, chart navigation ready, symbol management ready, market structure engine ready.
-```
-
-## Run
+Run the application:
 
 ```powershell
 $env:PYTHONPATH="src"
 python -m sentinel_ai.main
 ```
 
-## Market Structure Behavior
+## Important Dependency Note
 
-At startup and on every validated market refresh, Sentinel AI performs this safe sequence:
+`numpy==1.26.4` is intentionally pinned because the current MetaTrader5 Python package used by Sentinel AI requires NumPy 1.x binary compatibility.
 
-1. MT5 returns broker-specific candles.
-2. Market Data Feed validates and normalizes the candles.
-3. Market Structure Engine analyzes only the validated snapshot.
-4. The GUI receives only the completed structure snapshot.
-5. The chart displays swing markers and BOS context.
-6. The Current Prediction panel remains WAIT because no prediction engine is active yet.
+## Chart Controls
 
-## Configuration
+- Drag left/right: review previous candles
+- Mouse wheel: zoom in/out
+- Double-click: reset chart to latest view
 
-Packaged defaults are stored in:
+## Engineering Notes
 
-```text
-src/sentinel_ai/resources/config/default_config.json
-```
-
-Market structure defaults are under:
-
-```json
-"analysis": {
-  "market_structure": {
-    "enabled": true,
-    "lookback_candles": 200,
-    "swing_window": 2,
-    "minimum_swing_distance_price": 0.0,
-    "max_chart_markers": 80
-  }
-}
-```
-
-Do not edit packaged defaults for local settings after installation. The writable runtime config is automatically created in the Sentinel AI config directory.
-
-## Build
-
-```powershell
-.\build_windows.ps1
-```
-
-The build remains PyInstaller-compatible and Windows standalone-ready.
+- GUI does not call MT5 directly.
+- GUI does not calculate support/resistance.
+- MT5 access remains isolated in the MT5 service and market data services.
+- Support/resistance analysis is isolated in `SupportResistanceEngine`.
+- Trading controls remain disabled because trade execution is not implemented yet.

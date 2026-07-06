@@ -2,8 +2,8 @@
 MODULE: APP-001
 FILE: APP-001-001
 Module Name: Qt Application Bootstrapper
-Version: 0.7.0
-Purpose: Starts Sentinel AI with configured services, theme, welcome gate, MT5 status, symbol management, market feed, chart rendering, refresh loop, market structure context, and main window.
+Version: 0.8.0
+Purpose: Starts Sentinel AI with configured services, theme, welcome gate, MT5 status, symbol management, market feed, chart rendering, refresh loop, market structure, support/resistance context, and main window.
 Dependencies: sys, PySide6.QtWidgets, sentinel_ai.gui, sentinel_ai.market_data, sentinel_ai.models, sentinel_ai.services
 Change History:
 - 0.1.0: Added production startup flow with mandatory manual welcome window.
@@ -14,6 +14,7 @@ Change History:
 - 0.5.1: Preserved service wiring for one-second refresh and chart navigation patch.
 - 0.6.0: Added broker/account-specific symbol resolution, selection, persistence, and chart reload flow.
 - 0.7.0: Added read-only market structure analysis updates from validated snapshots.
+- 0.8.0: Added read-only support/resistance analysis updates from market structure snapshots.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from sentinel_ai.gui.welcome_window import WelcomeWindow
 from sentinel_ai.market_data.candle_validator import CandleDataValidationError
 from sentinel_ai.models.market import MarketDataSnapshot
 from sentinel_ai.models.market_structure import MarketStructureSnapshot
+from sentinel_ai.models.support_resistance import SupportResistanceSnapshot
 from sentinel_ai.models.symbol import SymbolResolutionResult
 from sentinel_ai.mt5.exceptions import Mt5ServiceError
 from sentinel_ai.services.app_context import ApplicationContextFactory
@@ -141,7 +143,9 @@ class SentinelApplication:
                 bar_count=self._context.config.market_data.default_feed_bar_count,
             )
             self._main_window.update_market_feed_status(snapshot)
-            self._update_market_structure(snapshot)
+            structure_snapshot = self._update_market_structure(snapshot)
+            if structure_snapshot is not None:
+                self._update_support_resistance(snapshot, structure_snapshot)
             return snapshot
         except (Mt5ServiceError, CandleDataValidationError, ValueError) as error:
             self._context.logger.warning("Market feed refresh failed: %s", error)
@@ -253,7 +257,9 @@ class SentinelApplication:
             )
             return
         self._main_window.update_live_market_snapshot(snapshot)
-        self._update_market_structure(snapshot)
+        structure_snapshot = self._update_market_structure(snapshot)
+        if structure_snapshot is not None:
+            self._update_support_resistance(snapshot, structure_snapshot)
 
     def _update_market_structure(self, snapshot: MarketDataSnapshot) -> MarketStructureSnapshot | None:
         """Analyze market structure from validated candles and route read-only context to the GUI."""
@@ -265,6 +271,22 @@ class SentinelApplication:
             return None
         self._main_window.update_market_structure_status(structure_snapshot)
         return structure_snapshot
+
+
+    def _update_support_resistance(
+        self,
+        snapshot: MarketDataSnapshot,
+        structure_snapshot: MarketStructureSnapshot,
+    ) -> SupportResistanceSnapshot | None:
+        """Analyze support/resistance zones from validated market structure and route context to the GUI."""
+        try:
+            support_resistance_snapshot = self._context.support_resistance_engine.analyze(snapshot, structure_snapshot)
+        except ValueError as error:
+            self._context.logger.warning("Support/resistance analysis failed: %s", error)
+            self._main_window.update_runtime_status(f"Support/resistance unavailable: {error}")
+            return None
+        self._main_window.update_support_resistance_status(support_resistance_snapshot, structure_snapshot.summary)
+        return support_resistance_snapshot
 
     def _handle_market_refresh_failed(self, message: str) -> None:
         """Display a non-destructive refresh failure status."""

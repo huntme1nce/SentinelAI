@@ -2,7 +2,7 @@
 MODULE: GUI-003
 FILE: GUI-003-001
 Module Name: Chart Panel
-Version: 0.7.0
+Version: 0.8.0
 Purpose: Provides the central embedded live candlestick chart container without trading or domain analysis logic.
 Dependencies: json, PySide6.QtCore, PySide6.QtWidgets, PySide6.QtWebEngineWidgets, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.utils.paths
 Change History:
@@ -12,6 +12,7 @@ Change History:
 - 0.5.0: Reused snapshot rendering path for live refresh updates without GUI market logic.
 - 0.5.1: Preserved GUI-only chart bridge for runtime pan, zoom, and review-state behavior.
 - 0.7.0: Added GUI-only market structure marker payload routing to chart runtime.
+- 0.8.0: Added GUI-only support/resistance zone payload routing to chart runtime.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ from PySide6.QtWidgets import QFrame, QLabel, QStackedLayout, QVBoxLayout, QWidg
 
 from sentinel_ai.models.market import MarketDataSnapshot
 from sentinel_ai.models.market_structure import MarketStructureSnapshot
+from sentinel_ai.models.support_resistance import SupportResistanceSnapshot
 from sentinel_ai.utils.paths import resource_path
 
 try:
@@ -154,6 +156,53 @@ class ChartPanel(QFrame):
             f"window.SentinelChart.setMarketStructure({json.dumps(markers)}, {json.dumps(metadata)});"
         )
         self._chart_view.page().runJavaScript(script)
+
+
+    def set_support_resistance_snapshot(self, support_resistance_snapshot: SupportResistanceSnapshot, max_zones: int) -> None:
+        """Route precomputed support/resistance zones to the embedded chart runtime."""
+        if self._chart_view is None or not self._chart_ready:
+            return
+
+        zone_limit = max(1, int(max_zones))
+        zones = [
+            {
+                "kind": zone.kind,
+                "lowerPrice": zone.lower_price,
+                "upperPrice": zone.upper_price,
+                "midpoint": zone.midpoint,
+                "touchCount": zone.touch_count,
+                "rank": zone.rank,
+                "label": zone.label,
+            }
+            for zone in support_resistance_snapshot.all_zones[:zone_limit]
+        ]
+        metadata = {
+            "symbol": support_resistance_snapshot.symbol,
+            "timeframe": support_resistance_snapshot.timeframe,
+            "summary": support_resistance_snapshot.summary,
+            "nearestSupport": self._zone_to_payload(support_resistance_snapshot.nearest_support),
+            "nearestResistance": self._zone_to_payload(support_resistance_snapshot.nearest_resistance),
+        }
+        script = (
+            "window.SentinelChart && "
+            f"window.SentinelChart.setSupportResistance({json.dumps(zones)}, {json.dumps(metadata)});"
+        )
+        self._chart_view.page().runJavaScript(script)
+
+    @staticmethod
+    def _zone_to_payload(zone: object) -> dict[str, object] | None:
+        """Convert an optional support/resistance zone to a chart-safe payload."""
+        if zone is None:
+            return None
+        return {
+            "kind": getattr(zone, "kind"),
+            "lowerPrice": getattr(zone, "lower_price"),
+            "upperPrice": getattr(zone, "upper_price"),
+            "midpoint": getattr(zone, "midpoint"),
+            "touchCount": getattr(zone, "touch_count"),
+            "rank": getattr(zone, "rank"),
+            "label": getattr(zone, "label"),
+        }
 
     def _render_market_snapshot(self, snapshot: MarketDataSnapshot) -> None:
         """Send validated chart candles to the embedded chart runtime."""

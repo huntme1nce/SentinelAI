@@ -1,7 +1,7 @@
 # MODULE: OPS-002
 # FILE: OPS-002-001
 # Module Name: PyInstaller Specification
-# Version: 0.7.0
+# Version: 0.8.0
 # Purpose: Builds Sentinel AI as a Windows standalone application with packaged resources.
 # Dependencies: PyInstaller, pathlib
 # Change History:
@@ -12,6 +12,7 @@
 # - 0.5.1: Preserved packaged resources for refresh timing and chart navigation patch.
 # - 0.6.0: Preserved packaged resources and hidden imports for symbol management foundation.
 # - 0.7.0: Preserved packaged resources and hidden imports for market structure engine foundation.
+# - 0.8.0: Preserved packaged resources and hidden imports for support/resistance engine foundation.
 
 # -*- mode: python ; coding: utf-8 -*-
 

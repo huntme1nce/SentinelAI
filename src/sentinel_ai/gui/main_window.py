@@ -2,9 +2,9 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-Version: 0.7.0
+Version: 0.8.0
 Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, market-structure, or analysis logic.
-Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models.market, sentinel_ai.models.market_structure
+Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.models.support_resistance
 Change History:
 - 0.1.0: Added approved main GUI layout with toolbar, chart, prediction panel, statistics panel, and status bar.
 - 0.3.0: Added GUI-only market feed status update method for validated snapshots.
@@ -13,6 +13,7 @@ Change History:
 - 0.5.1: Preserved layout while live refresh cadence and chart navigation behavior were patched.
 - 0.6.0: Added GUI-only symbol selection controls and symbol status methods.
 - 0.7.0: Added GUI-only market structure status rendering and chart marker routing.
+- 0.8.0: Added GUI-only support/resistance status rendering and chart zone routing.
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ from sentinel_ai.gui.widgets.prediction_panel import PredictionPanel
 from sentinel_ai.gui.widgets.statistics_panel import StatisticsPanel
 from sentinel_ai.models.market import MarketDataSnapshot
 from sentinel_ai.models.market_structure import MarketStructureSnapshot
+from sentinel_ai.models.support_resistance import SupportResistanceSnapshot
 
 
 class MainWindow(QMainWindow):
@@ -235,6 +237,28 @@ class MainWindow(QMainWindow):
             risk_reward="-",
         )
         self._chart_panel.set_market_structure_snapshot(structure_snapshot, self._config.market_structure.max_chart_markers)
+
+
+    def update_support_resistance_status(
+        self,
+        support_resistance_snapshot: SupportResistanceSnapshot,
+        structure_summary: str,
+    ) -> None:
+        """Display support/resistance context supplied by analysis services without computing it in the GUI."""
+        reason = f"{structure_summary} | {support_resistance_snapshot.summary}"
+        self._prediction_panel.update_prediction(
+            direction="WAIT",
+            confidence="Pending",
+            timeframe=support_resistance_snapshot.timeframe,
+            reason=reason,
+            take_profit="-",
+            stop_loss="-",
+            risk_reward="-",
+        )
+        self._chart_panel.set_support_resistance_snapshot(
+            support_resistance_snapshot,
+            self._config.support_resistance.max_chart_zones,
+        )
 
     def set_trading_controls_enabled(self, enabled: bool) -> None:
         """Enable or disable trading controls based on trading service availability."""

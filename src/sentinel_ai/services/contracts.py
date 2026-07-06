@@ -2,7 +2,7 @@
 MODULE: SVC-001
 FILE: SVC-001-001
 Module Name: Service Contracts
-Version: 0.7.0
+Version: 0.8.0
 Purpose: Defines replaceable service interfaces for analysis, market data, symbol management, prediction, trading, learning, and notifications.
 Dependencies: abc, pandas, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.models.prediction
 Change History:
@@ -13,6 +13,7 @@ Change History:
 - 0.5.0: Added market refresh service contract for live feed updates.
 - 0.6.0: Added symbol catalog and search methods to the market data service contract.
 - 0.7.0: Added market structure engine contract for replaceable analysis modules.
+- 0.8.0: Added support/resistance engine contract for replaceable analysis modules.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from sentinel_ai.models.market import (
 )
 from sentinel_ai.models.symbol import SymbolCatalogItem
 from sentinel_ai.models.market_structure import MarketStructureSnapshot
+from sentinel_ai.models.support_resistance import SupportResistanceSnapshot
 from sentinel_ai.models.prediction import PredictionRecord
 
 
@@ -122,6 +124,19 @@ class MarketStructureEngineContract(ABC):
     def analyze(self, market_snapshot: MarketDataSnapshot) -> MarketStructureSnapshot:
         """Analyze a validated market snapshot and return structure context."""
         raise NotImplementedError("MarketStructureEngineContract.analyze must be implemented by an analysis engine.")
+
+
+class SupportResistanceEngineContract(ABC):
+    """Define the contract for replaceable support/resistance engines."""
+
+    @abstractmethod
+    def analyze(
+        self,
+        market_snapshot: MarketDataSnapshot,
+        structure_snapshot: MarketStructureSnapshot,
+    ) -> SupportResistanceSnapshot:
+        """Analyze validated market and structure snapshots and return support/resistance context."""
+        raise NotImplementedError("SupportResistanceEngineContract.analyze must be implemented by an analysis engine.")
 
 
 class AnalysisPipelineContract(ABC):
