@@ -1,7 +1,7 @@
 # MODULE: OPS-004
 # FILE: OPS-004-001
 # Module Name: Python Requirements
-# Version: 0.9.0
+# Version: 0.9.1
 # Purpose: Pins Python dependencies for Sentinel AI Windows standalone compatibility.
 # Dependencies: pip
 # Change History:
@@ -15,6 +15,7 @@
 # - 0.7.0: Preserved dependency pins for market structure engine foundation.
 # - 0.8.0: Preserved dependency pins for support/resistance engine foundation.
 # - 0.9.0: Preserved dependency pins for BOS visibility and liquidity engine foundation.
+# - 0.9.1: Preserved dependency pins for bounded chart overlay segments patch.
 
 PySide6==6.8.1.1
 MetaTrader5==5.0.4424

@@ -2,12 +2,13 @@
 MODULE: ANL-001
 FILE: ANL-001-001
 Module Name: Market Structure Engine
-Version: 0.9.0
+Version: 0.9.1
 Purpose: Detects confirmed swing highs, swing lows, structural bias, and persistent close-based break-of-structure events from validated candles.
 Dependencies: datetime, logging, sentinel_ai.config.config_schema, sentinel_ai.models.market, sentinel_ai.models.market_structure
 Change History:
 - 0.7.0: Added read-only market structure engine foundation without prediction or trading execution.
 - 0.9.0: Added historical BOS detection and summary visibility without changing prediction behavior.
+- 0.9.1: Preserved historical BOS output while companion overlays changed to bounded segments.
 """
 
 from __future__ import annotations

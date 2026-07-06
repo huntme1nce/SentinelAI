@@ -1,10 +1,12 @@
 # Sentinel AI
 
-## Sprint 9: Liquidity Engine Foundation + BOS Visibility Patch
+## Sprint 9.1: Bounded Chart Overlay Segments Patch
 
 Sentinel AI is a professional Windows desktop application for MT5 market analysis, statistical prediction tracking, and future controlled trading execution.
 
-Sprint 9 combines the requested **Sprint 8.1 BOS visibility patch** with the **Liquidity Engine Foundation**. It keeps recent BOS markers visible historically, makes BOS labels stronger on the chart, and adds read-only liquidity analysis for buy-side/sell-side liquidity pools, liquidity sweeps, and possible inducement candidates. This sprint does not generate BUY/SELL predictions and does not place trades.
+Sprint 9.1 improves Sprint 9 chart usability. Support/resistance and liquidity are no longer rendered as full-width chart lines. They are now rendered as candle-bounded segments using the candle where the level was first detected and the candle where the related level was confirmed, touched, swept, or remains actively tracked. This follows the approved trading interpretation that levels should be tied to the candles that created them, not drawn endlessly across the entire chart.
+
+This sprint does not generate BUY/SELL predictions and does not place trades.
 
 ## Current Capability
 
@@ -27,16 +29,19 @@ Sprint 9 combines the requested **Sprint 8.1 BOS visibility patch** with the **L
 - Last bullish BOS and bearish BOS context in the Current Prediction panel
 - Read-only Support and Resistance Engine
 - Ranked support/resistance zones on the chart
+- Support/resistance zones rendered as candle-bounded segments
 - Nearest support/resistance context in the Current Prediction panel
 - Read-only Liquidity Engine
 - Buy-side liquidity and sell-side liquidity pool overlays
+- Liquidity pools rendered as candle-bounded segments
 - Bullish and bearish liquidity sweep markers
 - Possible inducement candidate context
+- Reduced default chart overlay noise
 - Toolbar trend label updated from structure bias
 - Current Prediction panel remains WAIT while showing analysis context only
 - Statistics panel backed by persisted prediction records
 
-## What Sprint 9 Does Not Do
+## What Sprint 9.1 Does Not Do
 
 - No BUY/SELL prediction generation
 - No confidence scoring
@@ -76,10 +81,10 @@ python -m sentinel_ai.main
 ## Chart Overlay Priority
 
 1. Candles
-2. Support/resistance zones
+2. Bounded support/resistance segments
 3. Swing markers
 4. BOS markers
-5. Liquidity pool and sweep markers
+5. Bounded liquidity segments and liquidity sweep markers
 
 ## Engineering Notes
 
@@ -90,4 +95,5 @@ python -m sentinel_ai.main
 - Support/resistance analysis is isolated in `SupportResistanceEngine`.
 - Liquidity analysis is isolated in `LiquidityEngine`.
 - Liquidity is treated as confirmation context only, not a standalone strategy.
+- Support/resistance and liquidity overlays are rendered as context-bounded chart segments, not full-chart lines.
 - Trading controls remain disabled because trade execution is not implemented yet.

@@ -2,7 +2,7 @@
 MODULE: SVC-001
 FILE: SVC-001-001
 Module Name: Service Contracts
-Version: 0.9.0
+Version: 0.9.1
 Purpose: Defines replaceable service interfaces for analysis, market data, symbol management, prediction, trading, learning, and notifications.
 Dependencies: abc, pandas, sentinel_ai.models.liquidity, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.models.prediction
 Change History:
@@ -15,6 +15,7 @@ Change History:
 - 0.7.0: Added market structure engine contract for replaceable analysis modules.
 - 0.8.0: Added support/resistance engine contract for replaceable analysis modules.
 - 0.9.0: Added liquidity engine contract for replaceable analysis modules.
+- 0.9.1: Preserved analysis service contracts for bounded overlay segment patch.
 """
 
 from __future__ import annotations

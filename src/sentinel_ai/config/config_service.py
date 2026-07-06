@@ -2,7 +2,7 @@
 MODULE: CFG-001
 FILE: CFG-001-002
 Module Name: Configuration Service
-Version: 0.9.0
+Version: 0.9.1
 Purpose: Loads, persists, and validates JSON configuration for Sentinel AI, including analysis settings.
 Dependencies: copy, json, pathlib, shutil, sentinel_ai.config.config_schema, sentinel_ai.core.constants, sentinel_ai.utils.paths
 Change History:
@@ -15,6 +15,7 @@ Change History:
 - 0.7.0: Preserved merge migration for market structure engine settings.
 - 0.8.0: Preserved merge migration for support/resistance engine settings.
 - 0.9.0: Preserved merge migration for liquidity engine and BOS marker settings.
+- 0.9.1: Added targeted migration for bounded overlay visibility defaults.
 """
 
 from __future__ import annotations
@@ -102,9 +103,31 @@ class ConfigService:
                 market_data = migrated.setdefault("market_data", {})
                 market_data["refresh_intervals_seconds"] = copy.deepcopy(default_intervals)
 
+        if cls._is_version_older(current_version, "0.9.1"):
+            cls._migrate_bounded_overlay_defaults(defaults, migrated)
+
         application = migrated.setdefault("application", {})
         application["version"] = target_version
         return migrated
+
+
+    @staticmethod
+    def _migrate_bounded_overlay_defaults(defaults: dict[str, Any], migrated: dict[str, Any]) -> None:
+        """Apply Sprint 9.1 visual-noise defaults without changing unrelated user settings."""
+        default_analysis = defaults.get("analysis", {})
+        analysis = migrated.setdefault("analysis", {})
+        for section_name, keys in {
+            "market_structure": ("max_chart_markers", "max_bos_markers"),
+            "support_resistance": ("min_touch_count", "max_chart_zones"),
+            "liquidity": ("max_chart_pools", "max_chart_sweeps"),
+        }.items():
+            default_section = default_analysis.get(section_name, {})
+            if not isinstance(default_section, dict):
+                continue
+            section = analysis.setdefault(section_name, {})
+            for key in keys:
+                if key in default_section:
+                    section[key] = copy.deepcopy(default_section[key])
 
     @staticmethod
     def _is_version_older(current_version: str, target_version: str) -> bool:

@@ -2,7 +2,7 @@
 MODULE: SVC-002
 FILE: SVC-002-001
 Module Name: Application Context
-Version: 0.9.0
+Version: 0.9.1
 Purpose: Composes Sentinel AI services without coupling GUI to trading, symbol management, analysis, or persistence internals.
 Dependencies: logging, sentinel_ai.analysis, sentinel_ai.config, sentinel_ai.database, sentinel_ai.logging_service, sentinel_ai.market_data, sentinel_ai.mt5, sentinel_ai.symbols
 Change History:
@@ -15,6 +15,7 @@ Change History:
 - 0.7.0: Added market structure engine composition.
 - 0.8.0: Added support/resistance engine composition.
 - 0.9.0: Added liquidity engine composition.
+- 0.9.1: Preserved service composition for bounded overlay segment patch.
 """
 
 from __future__ import annotations

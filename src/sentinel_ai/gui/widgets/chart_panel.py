@@ -2,7 +2,7 @@
 MODULE: GUI-003
 FILE: GUI-003-001
 Module Name: Chart Panel
-Version: 0.9.0
+Version: 0.9.1
 Purpose: Provides the central embedded live candlestick chart container without trading or domain analysis logic.
 Dependencies: json, PySide6.QtCore, PySide6.QtWidgets, PySide6.QtWebEngineWidgets, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.utils.paths
 Change History:
@@ -14,6 +14,7 @@ Change History:
 - 0.7.0: Added GUI-only market structure marker payload routing to chart runtime.
 - 0.8.0: Added GUI-only support/resistance zone payload routing to chart runtime.
 - 0.9.0: Added GUI-only historical BOS and liquidity payload routing to chart runtime.
+- 0.9.1: Added bounded overlay segment payloads for support/resistance and liquidity.
 """
 
 from __future__ import annotations
@@ -180,6 +181,8 @@ class ChartPanel(QFrame):
                 "touchCount": zone.touch_count,
                 "rank": zone.rank,
                 "label": zone.label,
+                "startTime": int(zone.segment_start_time.timestamp()),
+                "endTime": int(zone.segment_end_time.timestamp()),
             }
             for zone in support_resistance_snapshot.all_zones[:zone_limit]
         ]
@@ -208,6 +211,7 @@ class ChartPanel(QFrame):
                 "side": pool.side,
                 "price": pool.price,
                 "time": int(pool.reference_time.timestamp()),
+                "endTime": int(pool.segment_end_time.timestamp()),
                 "swept": pool.swept,
                 "inducementCandidate": pool.inducement_candidate,
                 "distanceFromPrice": pool.distance_from_price,
@@ -253,6 +257,8 @@ class ChartPanel(QFrame):
             "touchCount": getattr(zone, "touch_count"),
             "rank": getattr(zone, "rank"),
             "label": getattr(zone, "label"),
+            "startTime": int(getattr(zone, "segment_start_time").timestamp()),
+            "endTime": int(getattr(zone, "segment_end_time").timestamp()),
         }
 
     def _render_market_snapshot(self, snapshot: MarketDataSnapshot) -> None:

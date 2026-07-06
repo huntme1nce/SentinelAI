@@ -2,7 +2,7 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-Version: 0.9.0
+Version: 0.9.1
 Purpose: Defines validated configuration models for Sentinel AI, including modular analysis-engine settings.
 Dependencies: dataclasses, typing
 Change History:
@@ -16,6 +16,7 @@ Change History:
 - 0.7.0: Added market structure engine configuration for Sprint 7 analysis foundation.
 - 0.8.0: Added support/resistance engine configuration for Sprint 8 analysis foundation.
 - 0.9.0: Added liquidity engine configuration for Sprint 9 analysis foundation.
+- 0.9.1: Preserved schema while default configuration now reduces overlay noise and bounds chart segments.
 """
 
 from __future__ import annotations

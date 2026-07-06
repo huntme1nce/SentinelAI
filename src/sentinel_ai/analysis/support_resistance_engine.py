@@ -2,11 +2,12 @@
 MODULE: ANL-002
 FILE: ANL-002-001
 Module Name: Support and Resistance Engine
-Version: 0.8.0
+Version: 0.9.1
 Purpose: Detects ranked support and resistance zones from confirmed market-structure swing points.
 Dependencies: datetime, logging, statistics, sentinel_ai.config.config_schema, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.models.support_resistance
 Change History:
 - 0.8.0: Added read-only support/resistance zone engine foundation without prediction or trading execution.
+- 0.9.1: Preserved bounded zone timing so chart overlays render as local segments, not full-chart lines.
 """
 
 from __future__ import annotations
@@ -260,14 +261,11 @@ class SupportResistanceEngine:
         """Build a concise support/resistance status summary for GUI display and logs."""
         support_text = "nearest support unavailable"
         if nearest_support is not None:
-            support_text = f"support {nearest_support.label} {nearest_support.lower_price:.2f}-{nearest_support.upper_price:.2f}"
+            support_text = f"nearest support {nearest_support.label} {nearest_support.lower_price:.2f}-{nearest_support.upper_price:.2f}"
         resistance_text = "nearest resistance unavailable"
         if nearest_resistance is not None:
-            resistance_text = f"resistance {nearest_resistance.label} {nearest_resistance.lower_price:.2f}-{nearest_resistance.upper_price:.2f}"
-        return (
-            f"{support_text}; {resistance_text}; "
-            f"analyzed {analyzed_swing_count} swings; zone tolerance {zone_tolerance:.2f}"
-        )
+            resistance_text = f"nearest resistance {nearest_resistance.label} {nearest_resistance.lower_price:.2f}-{nearest_resistance.upper_price:.2f}"
+        return f"S/R: {support_text}; {resistance_text}; swings {analyzed_swing_count}; tolerance {zone_tolerance:.2f}"
 
     @staticmethod
     def _build_disabled_snapshot(

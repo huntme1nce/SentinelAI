@@ -2,11 +2,12 @@
 MODULE: ANL-003
 FILE: ANL-003-001
 Module Name: Liquidity Engine
-Version: 0.9.0
+Version: 0.9.1
 Purpose: Detects read-only liquidity pools, liquidity sweeps, and inducement candidates from validated candles and confirmed market structure.
 Dependencies: datetime, logging, sentinel_ai.config.config_schema, sentinel_ai.models.liquidity, sentinel_ai.models.market, sentinel_ai.models.market_structure
 Change History:
 - 0.9.0: Added liquidity engine foundation without prediction or trading execution.
+- 0.9.1: Added bounded liquidity pool segment timing and reduced overlay noise.
 """
 
 from __future__ import annotations
@@ -50,7 +51,7 @@ class LiquidityEngine:
 
         relevant_swings = self._select_relevant_swings(structure_snapshot, candles)
         sweeps = self._detect_sweeps(candles, relevant_swings)
-        pools = self._build_liquidity_pools(relevant_swings, sweeps, candles[-1].close)
+        pools = self._build_liquidity_pools(relevant_swings, sweeps, candles[-1].close, candles[-1].time)
         latest_bullish_sweep = self._latest_directional_sweep(sweeps, "BULLISH")
         latest_bearish_sweep = self._latest_directional_sweep(sweeps, "BEARISH")
         summary = self._build_summary(pools, sweeps, latest_bullish_sweep, latest_bearish_sweep, len(candles))
@@ -145,16 +146,22 @@ class LiquidityEngine:
         swings: tuple[SwingPoint, ...],
         sweeps: tuple[LiquiditySweep, ...],
         latest_close: float,
+        latest_candle_time: datetime,
     ) -> tuple[LiquidityPool, ...]:
-        """Build active and swept liquidity pools from confirmed swing points."""
-        sweep_keys = {(sweep.swept_side, sweep.reference_time, float(sweep.reference_price)) for sweep in sweeps}
+        """Build active and swept liquidity pools from confirmed swing points with bounded chart timing."""
+        sweep_by_reference = {
+            (sweep.swept_side, sweep.reference_time, float(sweep.reference_price)): sweep
+            for sweep in sweeps
+        }
         pools: list[LiquidityPool] = []
         inducement_distance = float(self._config.inducement_distance_price)
         for swing in swings:
             side = "BUY_SIDE" if swing.is_high else "SELL_SIDE"
             label = "BSL" if swing.is_high else "SSL"
             distance = abs(float(latest_close) - float(swing.price))
-            swept = (side, swing.time, float(swing.price)) in sweep_keys
+            reference_key = (side, swing.time, float(swing.price))
+            matching_sweep = sweep_by_reference.get(reference_key)
+            swept = matching_sweep is not None
             inducement_candidate = not swept and (inducement_distance <= 0 or distance <= inducement_distance)
             pools.append(
                 LiquidityPool(
@@ -162,13 +169,14 @@ class LiquidityEngine:
                     price=float(swing.price),
                     reference_time=swing.time,
                     reference_kind=swing.kind,
+                    end_time=matching_sweep.swept_at if matching_sweep is not None else latest_candle_time,
                     swept=swept,
                     inducement_candidate=inducement_candidate,
                     distance_from_price=distance,
                     label=label,
                 )
             )
-        pools.sort(key=lambda pool: (pool.swept, pool.distance_from_price, pool.reference_time), reverse=False)
+        pools.sort(key=lambda pool: (pool.swept, pool.distance_from_price, -pool.reference_time.timestamp()), reverse=False)
         return tuple(pools[: int(self._config.max_chart_pools)])
 
     @staticmethod
@@ -198,9 +206,9 @@ class LiquidityEngine:
             bearish_text = f"bearish sweep above {latest_bearish_sweep.reference_price:.2f}"
         inducement_count = sum(1 for pool in pools if pool.inducement_candidate)
         return (
-            f"liquidity pools BSL {active_buy_side}, SSL {active_sell_side}; "
-            f"{bullish_text}; {bearish_text}; inducement candidates {inducement_count}; "
-            f"sweeps {len(sweeps)}; analyzed {analyzed_candle_count} candles"
+            f"Liquidity: BSL {active_buy_side}, SSL {active_sell_side}; "
+            f"{bullish_text}; {bearish_text}; inducements {inducement_count}; "
+            f"sweeps {len(sweeps)}; candles {analyzed_candle_count}"
         )
 
     @staticmethod

@@ -2,11 +2,12 @@
 MODULE: MODEL-005
 FILE: MODEL-005-001
 Module Name: Support and Resistance Models
-Version: 0.8.0
+Version: 0.9.1
 Purpose: Defines immutable support/resistance zone analysis results used by replaceable analysis engines.
 Dependencies: dataclasses, datetime
 Change History:
 - 0.8.0: Added support/resistance zone and snapshot models for Sprint 8.
+- 0.9.1: Exposed bounded segment timing helpers for chart overlays.
 """
 
 from __future__ import annotations
@@ -45,6 +46,16 @@ class SupportResistanceZone:
         """Return the compact chart label for this zone."""
         prefix = "S" if self.is_support else "R"
         return f"{prefix}{self.rank}"
+
+    @property
+    def segment_start_time(self) -> datetime:
+        """Return the first candle time used by the chart to start this bounded zone segment."""
+        return self.first_seen
+
+    @property
+    def segment_end_time(self) -> datetime:
+        """Return the last candle time used by the chart to end this bounded zone segment."""
+        return self.last_seen
 
     def contains_price(self, price: float) -> bool:
         """Return True when the supplied price is inside this zone boundary."""

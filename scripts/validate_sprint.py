@@ -2,7 +2,7 @@
 MODULE: OPS-001
 FILE: OPS-001-001
 Module Name: Sprint Validator
-Version: 0.9.0
+Version: 0.9.1
 Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, one-second refresh, symbol management, market structure, support/resistance, BOS visibility, and liquidity analysis.
 Dependencies: compileall, datetime, json, logging, pathlib, sys, pandas
 Change History:
@@ -16,6 +16,7 @@ Change History:
 - 0.7.0: Added validation for market structure models, engine output, and chart marker runtime.
 - 0.8.0: Added validation for support/resistance models, engine output, and chart zone runtime.
 - 0.9.0: Added validation for persistent BOS markers and liquidity engine output.
+- 0.9.1: Added bounded overlay segment validation for Sprint 9.1.
 """
 
 from __future__ import annotations
@@ -292,6 +293,19 @@ def main() -> int:
     if not liquidity_snapshot.pools:
         print("Liquidity pool detection validation failed.", file=sys.stderr)
         return 1
+    if not hasattr(liquidity_snapshot.pools[0], "segment_end_time"):
+        print("Liquidity bounded segment model validation failed.", file=sys.stderr)
+        return 1
+    if support_resistance_snapshot.all_zones and not hasattr(support_resistance_snapshot.all_zones[0], "segment_start_time"):
+        print("Support/resistance bounded segment model validation failed.", file=sys.stderr)
+        return 1
+
+    chart_runtime_resource = (source_root / "sentinel_ai" / "resources" / "chart" / "sentinel_chart_runtime.js").read_text(
+        encoding="utf-8"
+    )
+    if "resolveSegmentXRange" not in chart_runtime_resource:
+        print("Bounded chart segment renderer validation failed.", file=sys.stderr)
+        return 1
 
     try:
         json.dumps(chart_payload)
@@ -310,7 +324,7 @@ def main() -> int:
         "Sprint validation passed: source compiled, resources verified, config loaded, "
         "MT5 mapping available, market feed conversion validated, chart assets ready, "
         "one-second live refresh configured, chart navigation ready, symbol management ready, "
-        "market structure engine ready, support/resistance engine ready, liquidity engine ready."
+        "market structure engine ready, support/resistance engine ready, liquidity engine ready, bounded overlay segments ready."
     )
     return 0
 

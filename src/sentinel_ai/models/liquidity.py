@@ -2,11 +2,12 @@
 MODULE: MODEL-006
 FILE: MODEL-006-001
 Module Name: Liquidity Models
-Version: 0.9.0
+Version: 0.9.1
 Purpose: Defines immutable liquidity pool and liquidity sweep analysis results used by replaceable analysis engines.
 Dependencies: dataclasses, datetime
 Change History:
 - 0.9.0: Added liquidity pool, liquidity sweep, and liquidity snapshot models for Sprint 9.
+- 0.9.1: Added bounded pool end time so chart liquidity lines do not span the full chart.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ class LiquidityPool:
     price: float
     reference_time: datetime
     reference_kind: str
+    end_time: datetime
     swept: bool
     inducement_candidate: bool
     distance_from_price: float
@@ -37,6 +39,16 @@ class LiquidityPool:
     def is_sell_side(self) -> bool:
         """Return True when the pool is sell-side liquidity below a swing low."""
         return self.side == "SELL_SIDE"
+
+    @property
+    def segment_start_time(self) -> datetime:
+        """Return the candle time where this liquidity segment starts."""
+        return self.reference_time
+
+    @property
+    def segment_end_time(self) -> datetime:
+        """Return the candle time where this liquidity segment ends for chart display."""
+        return self.end_time
 
 
 @dataclass(frozen=True)

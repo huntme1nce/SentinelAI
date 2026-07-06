@@ -3,8 +3,8 @@
     "module_id": "CFG-003",
     "file_id": "CFG-003-001",
     "module_name": "Default Configuration Resource",
-    "version": "0.9.0",
-    "purpose": "Provides packaged default Sentinel AI configuration values, including symbol management, one-second refresh, market structure, support/resistance, and liquidity engine settings.",
+    "version": "0.9.1",
+    "purpose": "Provides packaged default Sentinel AI configuration values, including bounded chart overlay segments for market structure, support/resistance, and liquidity analysis.",
     "change_history": [
       "0.1.0: Added packaged defaults for Sprint 1 foundation.",
       "0.2.0: Added MT5 connection defaults.",
@@ -15,12 +15,13 @@
       "0.6.0: Added symbol management defaults for broker/account-specific symbol resolution and selection.",
       "0.7.0: Added market structure engine defaults and application version update.",
       "0.8.0: Added support/resistance engine defaults and application version update.",
-      "0.9.0: Added BOS visibility and liquidity engine defaults with application version update."
+      "0.9.0: Added BOS visibility and liquidity engine defaults with application version update.",
+      "0.9.1: Changed support/resistance and liquidity overlays to candle-bounded segments and reduced default visual noise."
     ]
   },
   "application": {
     "name": "Sentinel AI",
-    "version": "0.9.0",
+    "version": "0.9.1",
     "environment": "production"
   },
   "trading": {
@@ -86,8 +87,8 @@
       "lookback_candles": 200,
       "swing_window": 2,
       "minimum_swing_distance_price": 0.0,
-      "max_chart_markers": 80,
-      "max_bos_markers": 20
+      "max_chart_markers": 50,
+      "max_bos_markers": 16
     },
     "support_resistance": {
       "enabled": true,
@@ -95,15 +96,15 @@
       "atr_period": 14,
       "zone_atr_multiplier": 0.25,
       "minimum_zone_width_price": 0.0,
-      "min_touch_count": 1,
-      "max_chart_zones": 12
+      "min_touch_count": 2,
+      "max_chart_zones": 8
     },
     "liquidity": {
       "enabled": true,
       "lookback_candles": 200,
       "sweep_buffer_price": 0.0,
-      "max_chart_pools": 18,
-      "max_chart_sweeps": 24,
+      "max_chart_pools": 10,
+      "max_chart_sweeps": 14,
       "inducement_distance_price": 0.0
     }
   }

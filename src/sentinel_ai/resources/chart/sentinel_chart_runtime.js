@@ -2,7 +2,7 @@
 MODULE: CHART-002
 FILE: CHART-002-001
 Module Name: Sentinel Chart Runtime
-Version: 0.9.0
+Version: 0.9.1
 Purpose: Renders validated candlestick data with controlled live updates, chart panning, zooming, market structure, support/resistance, and liquidity overlays.
 Dependencies: Browser Canvas API
 Change History:
@@ -11,6 +11,7 @@ Change History:
 - 0.7.0: Added market structure marker and break-of-structure overlay rendering.
 - 0.8.0: Added support/resistance zone overlay rendering.
 - 0.9.0: Added persistent BOS rendering and liquidity overlay rendering with marker priority.
+- 0.9.1: Rendered support/resistance and liquidity as candle-bounded segments instead of full-chart lines.
 */
 
 (function () {
@@ -143,6 +144,8 @@ Change History:
       Number.isFinite(Number(zone.lowerPrice)) &&
       Number.isFinite(Number(zone.upperPrice)) &&
       Number(zone.upperPrice) >= Number(zone.lowerPrice) &&
+      Number.isFinite(Number(zone.startTime)) &&
+      Number.isFinite(Number(zone.endTime)) &&
       (zone.kind === "SUPPORT" || zone.kind === "RESISTANCE");
   }
 
@@ -163,6 +166,7 @@ Change History:
   function isValidLiquidityPool(pool) {
     return pool &&
       Number.isFinite(Number(pool.time)) &&
+      Number.isFinite(Number(pool.endTime)) &&
       Number.isFinite(Number(pool.price)) &&
       (pool.side === "BUY_SIDE" || pool.side === "SELL_SIDE");
   }
@@ -202,7 +206,7 @@ Change History:
     const priceRange = resolvePriceRange(visibleCandles);
 
     drawGrid(layout, priceRange);
-    drawSupportResistanceZones(layout, priceRange);
+    drawSupportResistanceZones(layout, visibleRange, priceRange);
     drawCandles(layout, visibleCandles, priceRange);
     drawStructureMarkers(layout, visibleRange, priceRange);
     drawStructureBreakMarkers(layout, visibleRange, priceRange);
@@ -376,7 +380,7 @@ Change History:
 
 
 
-  function drawSupportResistanceZones(layout, priceRange) {
+  function drawSupportResistanceZones(layout, visibleRange, priceRange) {
     if (!state.supportResistance.zones || state.supportResistance.zones.length === 0) {
       return;
     }
@@ -390,6 +394,10 @@ Change History:
       if (!Number.isFinite(lower) || !Number.isFinite(upper)) {
         return;
       }
+      const segment = resolveSegmentXRange(layout, visibleRange, Number(zone.startTime), Number(zone.endTime), 10);
+      if (segment === null) {
+        return;
+      }
       const upperY = yForPrice(layout, priceRange, upper);
       const lowerY = yForPrice(layout, priceRange, lower);
       const top = Math.max(layout.plotTop, Math.min(upperY, lowerY));
@@ -398,23 +406,24 @@ Change History:
         return;
       }
       const isSupport = zone.kind === "SUPPORT";
-      const fillColor = isSupport ? "rgba(94, 215, 255, 0.10)" : "rgba(255, 206, 92, 0.11)";
-      const lineColor = isSupport ? "rgba(94, 215, 255, 0.72)" : "rgba(255, 206, 92, 0.72)";
+      const fillColor = isSupport ? "rgba(94, 215, 255, 0.12)" : "rgba(255, 206, 92, 0.13)";
+      const lineColor = isSupport ? "rgba(94, 215, 255, 0.84)" : "rgba(255, 206, 92, 0.84)";
       const label = String(zone.label || (isSupport ? "S" : "R"));
       const labelText = `${label} ${formatPrice(zone.lowerPrice)}-${formatPrice(zone.upperPrice)} (${Number(zone.touchCount || 0)}x)`;
+      const segmentWidth = Math.max(segment.endX - segment.startX, layout.slotWidth * 2);
 
       context.fillStyle = fillColor;
-      context.fillRect(layout.plotLeft, top, layout.plotWidth, Math.max(bottom - top, 2));
+      context.fillRect(segment.startX, top, segmentWidth, Math.max(bottom - top, 2));
       context.strokeStyle = lineColor;
-      context.lineWidth = 1;
+      context.lineWidth = 1.2;
       context.setLineDash([6, 4]);
       context.beginPath();
-      context.moveTo(layout.plotLeft, Math.round((top + bottom) / 2) + 0.5);
-      context.lineTo(layout.plotRight, Math.round((top + bottom) / 2) + 0.5);
+      context.moveTo(segment.startX, Math.round((top + bottom) / 2) + 0.5);
+      context.lineTo(segment.endX, Math.round((top + bottom) / 2) + 0.5);
       context.stroke();
       context.setLineDash([]);
       context.fillStyle = lineColor;
-      context.fillText(labelText, layout.plotLeft + 10, Math.max(layout.plotTop + 12, top + 14));
+      context.fillText(labelText, segment.startX + 6, Math.max(layout.plotTop + 12, top + 14));
     });
     context.restore();
   }
@@ -488,11 +497,11 @@ Change History:
   }
 
   function drawLiquidityOverlays(layout, visibleRange, priceRange) {
-    drawLiquidityPools(layout, priceRange);
+    drawLiquidityPools(layout, visibleRange, priceRange);
     drawLiquiditySweeps(layout, visibleRange, priceRange);
   }
 
-  function drawLiquidityPools(layout, priceRange) {
+  function drawLiquidityPools(layout, visibleRange, priceRange) {
     if (!state.liquidity.pools || state.liquidity.pools.length === 0) {
       return;
     }
@@ -505,23 +514,27 @@ Change History:
       if (!Number.isFinite(price)) {
         return;
       }
+      const segment = resolveSegmentXRange(layout, visibleRange, Number(pool.time), Number(pool.endTime), 8);
+      if (segment === null) {
+        return;
+      }
       const y = yForPrice(layout, priceRange, price);
       if (y < layout.plotTop || y > layout.plotBottom) {
         return;
       }
       const isBuySide = pool.side === "BUY_SIDE";
-      const lineColor = pool.inducementCandidate ? "rgba(255, 219, 112, 0.90)" : (isBuySide ? "rgba(255, 206, 92, 0.52)" : "rgba(94, 215, 255, 0.52)");
+      const lineColor = pool.inducementCandidate ? "rgba(255, 219, 112, 0.90)" : (isBuySide ? "rgba(255, 206, 92, 0.58)" : "rgba(94, 215, 255, 0.58)");
       const label = String(pool.label || (isBuySide ? "BSL" : "SSL"));
       context.strokeStyle = lineColor;
       context.setLineDash(pool.swept ? [2, 6] : [3, 5]);
       context.lineWidth = pool.inducementCandidate ? 1.5 : 1;
       context.beginPath();
-      context.moveTo(layout.plotLeft, Math.round(y) + 0.5);
-      context.lineTo(layout.plotRight, Math.round(y) + 0.5);
+      context.moveTo(segment.startX, Math.round(y) + 0.5);
+      context.lineTo(segment.endX, Math.round(y) + 0.5);
       context.stroke();
       context.setLineDash([]);
       context.fillStyle = lineColor;
-      context.fillText(`${label} ${formatPrice(price)}`, layout.plotLeft + 10, y - 5);
+      context.fillText(`${label} ${formatPrice(price)}`, segment.startX + 5, y - 5);
     });
     context.restore();
   }
@@ -555,6 +568,63 @@ Change History:
       context.fillText(label, x, labelY);
     });
     context.restore();
+  }
+
+
+  function resolveSegmentXRange(layout, visibleRange, startTime, endTime, minimumSlots) {
+    if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || visibleRange.candles.length === 0) {
+      return null;
+    }
+
+    const totalCandles = state.candles.length;
+    let startIndex = absoluteIndexForTime(Math.min(startTime, endTime));
+    let endIndex = absoluteIndexForTime(Math.max(startTime, endTime));
+    if (startIndex === -1 || endIndex === -1) {
+      return null;
+    }
+
+    const minimumWidth = Math.max(1, Number(minimumSlots || 1)) * layout.slotWidth;
+    if (startIndex === endIndex) {
+      endIndex = Math.min(totalCandles - 1, startIndex + Math.max(1, Number(minimumSlots || 1)));
+    }
+
+    if (endIndex < visibleRange.startIndex || startIndex >= visibleRange.endIndexExclusive) {
+      return null;
+    }
+
+    const clampedStartIndex = Math.max(startIndex, visibleRange.startIndex);
+    const clampedEndIndex = Math.min(endIndex, visibleRange.endIndexExclusive - 1);
+    const visibleStartIndex = clampedStartIndex - visibleRange.startIndex;
+    const visibleEndIndex = clampedEndIndex - visibleRange.startIndex;
+    let startX = xForIndex(layout, visibleStartIndex, visibleRange.candles.length) - layout.slotWidth / 2;
+    let endX = xForIndex(layout, visibleEndIndex, visibleRange.candles.length) + layout.slotWidth / 2;
+
+    if (endX - startX < minimumWidth) {
+      endX = Math.min(layout.plotRight, startX + minimumWidth);
+      startX = Math.max(layout.plotLeft, Math.min(startX, endX - layout.slotWidth));
+    }
+
+    return {
+      startX: clamp(startX, layout.plotLeft, layout.plotRight),
+      endX: clamp(endX, layout.plotLeft, layout.plotRight),
+    };
+  }
+
+  function absoluteIndexForTime(timestamp) {
+    const target = Number(timestamp);
+    if (!Number.isFinite(target)) {
+      return -1;
+    }
+    let nearestIndex = -1;
+    let nearestDistance = Number.POSITIVE_INFINITY;
+    state.candles.forEach((candle, index) => {
+      const distance = Math.abs(Number(candle.time) - target);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearestIndex = index;
+      }
+    });
+    return nearestIndex;
   }
 
   function createVisibleTimeIndex(visibleRange) {
