@@ -2,11 +2,12 @@
 MODULE: CFG-001
 FILE: CFG-001-002
 Module Name: Configuration Service
-Version: 0.1.0
+Version: 0.2.0
 Purpose: Loads, persists, and validates JSON configuration for Sentinel AI.
 Dependencies: json, pathlib, shutil, sentinel_ai.config.config_schema, sentinel_ai.core.constants, sentinel_ai.utils.paths
 Change History:
 - 0.1.0: Added production configuration loading from packaged defaults into writable user config.
+- 0.2.0: Added backward-compatible configuration merge so Sprint 1 user configs receive Sprint 2 MT5 keys safely.
 """
 
 from __future__ import annotations
@@ -36,8 +37,12 @@ class ConfigService:
     def load(self) -> SentinelConfig:
         """Load and validate the current Sentinel AI configuration."""
         self._ensure_config_file_exists()
-        payload = self._read_json(self._config_path)
-        return SentinelConfig.from_dict(payload)
+        default_payload = self._read_json(resource_path(DEFAULT_CONFIG_RESOURCE))
+        user_payload = self._read_json(self._config_path)
+        merged_payload = self._merge_missing_values(default_payload, user_payload)
+        if merged_payload != user_payload:
+            self._write_json(self._config_path, merged_payload)
+        return SentinelConfig.from_dict(merged_payload)
 
     def _ensure_config_file_exists(self) -> None:
         """Create the writable configuration file from packaged defaults when absent."""
@@ -55,3 +60,23 @@ class ConfigService:
         if not isinstance(data, dict):
             raise ValueError(f"Configuration file must contain a JSON object: {path}")
         return data
+
+    @staticmethod
+    def _write_json(path: Path, payload: dict[str, Any]) -> None:
+        """Write a JSON configuration object to disk using deterministic formatting."""
+        with path.open("w", encoding="utf-8") as file_handle:
+            json.dump(payload, file_handle, indent=2, ensure_ascii=False)
+            file_handle.write("\n")
+
+    @classmethod
+    def _merge_missing_values(cls, defaults: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
+        """Return current config with missing keys filled from packaged defaults."""
+        merged = dict(current)
+        for key, default_value in defaults.items():
+            if key not in merged:
+                merged[key] = default_value
+                continue
+            current_value = merged[key]
+            if isinstance(default_value, dict) and isinstance(current_value, dict):
+                merged[key] = cls._merge_missing_values(default_value, current_value)
+        return merged

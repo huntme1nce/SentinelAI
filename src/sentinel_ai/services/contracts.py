@@ -2,18 +2,56 @@
 MODULE: SVC-001
 FILE: SVC-001-001
 Module Name: Service Contracts
-Version: 0.1.0
-Purpose: Defines replaceable service interfaces for analysis, prediction, trading, learning, and notifications.
-Dependencies: abc, sentinel_ai.models.prediction
+Version: 0.2.0
+Purpose: Defines replaceable service interfaces for analysis, market data, prediction, trading, learning, and notifications.
+Dependencies: abc, pandas, sentinel_ai.models.market, sentinel_ai.models.prediction
 Change History:
 - 0.1.0: Added runtime service contracts for modular expansion.
+- 0.2.0: Added market data service contract for MT5 connection foundation.
 """
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+import pandas as pd
+
+from sentinel_ai.models.market import Mt5AccountSnapshot, Mt5ConnectionStatus, SymbolValidationResult
 from sentinel_ai.models.prediction import PredictionRecord
+
+
+class MarketDataServiceContract(ABC):
+    """Define the contract for read-only market data gateways."""
+
+    @abstractmethod
+    def connect(self) -> Mt5ConnectionStatus:
+        """Connect to a market data source and return connection status."""
+        raise NotImplementedError("MarketDataServiceContract.connect must be implemented by a market data adapter.")
+
+    @abstractmethod
+    def disconnect(self) -> None:
+        """Disconnect from the active market data source."""
+        raise NotImplementedError("MarketDataServiceContract.disconnect must be implemented by a market data adapter.")
+
+    @abstractmethod
+    def connection_status(self) -> Mt5ConnectionStatus:
+        """Return the latest known market data connection status."""
+        raise NotImplementedError("MarketDataServiceContract.connection_status must be implemented by a market data adapter.")
+
+    @abstractmethod
+    def account_snapshot(self) -> Mt5AccountSnapshot | None:
+        """Return account details when available from the market data source."""
+        raise NotImplementedError("MarketDataServiceContract.account_snapshot must be implemented by a market data adapter.")
+
+    @abstractmethod
+    def validate_symbol(self, symbol: str) -> SymbolValidationResult:
+        """Validate whether a symbol is available and usable."""
+        raise NotImplementedError("MarketDataServiceContract.validate_symbol must be implemented by a market data adapter.")
+
+    @abstractmethod
+    def fetch_ohlc(self, symbol: str, timeframe: str, bar_count: int | None = None) -> pd.DataFrame:
+        """Fetch normalized OHLCV market data."""
+        raise NotImplementedError("MarketDataServiceContract.fetch_ohlc must be implemented by a market data adapter.")
 
 
 class AnalysisPipelineContract(ABC):

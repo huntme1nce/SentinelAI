@@ -2,11 +2,12 @@
 MODULE: OPS-001
 FILE: OPS-001-001
 Module Name: Sprint Validator
-Version: 0.1.0
-Purpose: Validates Sprint 1 source syntax and required packaged resources.
+Version: 0.2.0
+Purpose: Validates Sprint source syntax, required resources, configuration loading, and MT5 timeframe mapping.
 Dependencies: compileall, pathlib, sys
 Change History:
 - 0.1.0: Added compile and resource validation for stable milestone handoff.
+- 0.2.0: Added Sprint 2 configuration and MT5 timeframe mapper validation.
 """
 
 from __future__ import annotations
@@ -23,6 +24,8 @@ def main() -> int:
     required_files = [
         source_root / "sentinel_ai" / "resources" / "config" / "default_config.json",
         source_root / "sentinel_ai" / "resources" / "theme" / "dark_neon.json",
+        source_root / "sentinel_ai" / "mt5" / "mt5_service.py",
+        source_root / "sentinel_ai" / "mt5" / "timeframe_mapper.py",
         project_root / "SentinelAI.spec",
         project_root / "requirements.txt",
     ]
@@ -38,7 +41,20 @@ def main() -> int:
         print("Python source compilation failed.", file=sys.stderr)
         return 1
 
-    print("Sprint validation passed: source compiled and resources verified.")
+    sys.path.insert(0, str(source_root))
+    from sentinel_ai.config.config_service import ConfigService
+    from sentinel_ai.mt5.timeframe_mapper import Mt5TimeframeMapper
+
+    ConfigService(config_path=project_root / ".validation_config.json").load()
+    if "M5" not in Mt5TimeframeMapper.SUPPORTED_TIMEFRAMES:
+        print("MT5 timeframe mapper validation failed.", file=sys.stderr)
+        return 1
+
+    validation_config = project_root / ".validation_config.json"
+    if validation_config.exists():
+        validation_config.unlink()
+
+    print("Sprint validation passed: source compiled, resources verified, config loaded, MT5 mapping available.")
     return 0
 
 

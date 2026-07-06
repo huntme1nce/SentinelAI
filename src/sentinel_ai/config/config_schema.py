@@ -2,11 +2,12 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-Version: 0.1.0
+Version: 0.2.0
 Purpose: Defines validated configuration models for Sentinel AI.
 Dependencies: dataclasses, typing
 Change History:
 - 0.1.0: Added application, trading, database, logging, and UI configuration models.
+- 0.2.0: Added MT5 connection configuration for Sprint 2.
 """
 
 from __future__ import annotations
@@ -54,6 +55,29 @@ class TradingConfig:
             one_trade_at_a_time=bool(data["one_trade_at_a_time"]),
             minimum_confidence=float(data["minimum_confidence"]),
             default_risk_reward=float(data["default_risk_reward"]),
+        )
+
+
+@dataclass(frozen=True)
+class Mt5Config:
+    """Represent MetaTrader 5 connection and market-data settings."""
+
+    startup_connect: bool
+    terminal_path: str | None
+    default_bar_count: int
+    max_bars_per_request: int
+    require_visible_symbol: bool
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Mt5Config":
+        """Create an Mt5Config from a dictionary."""
+        terminal_path = data.get("terminal_path")
+        return cls(
+            startup_connect=bool(data["startup_connect"]),
+            terminal_path=str(terminal_path) if terminal_path else None,
+            default_bar_count=int(data["default_bar_count"]),
+            max_bars_per_request=int(data["max_bars_per_request"]),
+            require_visible_symbol=bool(data["require_visible_symbol"]),
         )
 
 
@@ -108,6 +132,7 @@ class SentinelConfig:
 
     application: ApplicationConfig
     trading: TradingConfig
+    mt5: Mt5Config
     database: DatabaseConfig
     logging: LoggingConfig
     ui: UiConfig
@@ -118,6 +143,7 @@ class SentinelConfig:
         return cls(
             application=ApplicationConfig.from_dict(data["application"]),
             trading=TradingConfig.from_dict(data["trading"]),
+            mt5=Mt5Config.from_dict(data["mt5"]),
             database=DatabaseConfig.from_dict(data["database"]),
             logging=LoggingConfig.from_dict(data["logging"]),
             ui=UiConfig.from_dict(data["ui"]),

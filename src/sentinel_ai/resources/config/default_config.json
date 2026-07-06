@@ -1,7 +1,7 @@
 {
   "application": {
     "name": "Sentinel AI",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "environment": "production"
   },
   "trading": {
@@ -24,5 +24,12 @@
     "welcome_required": true,
     "default_width": 1366,
     "default_height": 820
+  },
+  "mt5": {
+    "startup_connect": true,
+    "terminal_path": null,
+    "default_bar_count": 300,
+    "max_bars_per_request": 5000,
+    "require_visible_symbol": true
   }
 }
