@@ -1,0 +1,28 @@
+{
+  "application": {
+    "name": "Sentinel AI",
+    "version": "0.1.0",
+    "environment": "production"
+  },
+  "trading": {
+    "symbol": "GOLDm#",
+    "default_timeframe": "M5",
+    "auto_trade_enabled": false,
+    "one_trade_at_a_time": true,
+    "minimum_confidence": 75.0,
+    "default_risk_reward": 2.0
+  },
+  "database": {
+    "filename": "sentinel_ai.sqlite3"
+  },
+  "logging": {
+    "filename": "sentinel_ai.log",
+    "level": "INFO"
+  },
+  "ui": {
+    "theme": "dark_neon",
+    "welcome_required": true,
+    "default_width": 1366,
+    "default_height": 820
+  }
+}
