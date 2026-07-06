@@ -1,3 +1,13 @@
+# MODULE: OPS-005
+# FILE: OPS-005-001
+# Module Name: Git Ignore Rules
+# Version: 0.3.0
+# Purpose: Prevents local runtime, build, and environment files from entering source control.
+# Dependencies: Git
+# Change History:
+# - 0.1.0: Added local runtime and build exclusions.
+# - 0.3.0: Added file metadata for architecture traceability.
+
 .venv/
 __pycache__/
 *.pyc

@@ -1,5 +1,16 @@
+# MODULE: OPS-004
+# FILE: OPS-004-001
+# Module Name: Python Requirements
+# Version: 0.3.0
+# Purpose: Pins Python dependencies for Sentinel AI Windows standalone compatibility.
+# Dependencies: pip
+# Change History:
+# - 0.1.0: Added foundation dependencies.
+# - 0.2.0: Added MetaTrader5 dependency.
+# - 0.3.0: Pinned NumPy to 1.26.4 for MetaTrader5 binary compatibility.
+
 PySide6==6.8.1.1
 MetaTrader5==5.0.4424
 pandas==2.2.3
-numpy==2.1.3
+numpy==1.26.4
 pyinstaller==6.11.1

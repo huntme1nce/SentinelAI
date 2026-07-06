@@ -1,4 +1,15 @@
 {
+  "_metadata": {
+    "module_id": "GUI-001",
+    "file_id": "GUI-001-002",
+    "module_name": "Dark Neon Theme Resource",
+    "version": "0.3.0",
+    "purpose": "Provides packaged dark neon theme colors for Sentinel AI.",
+    "change_history": [
+      "0.1.0: Added dark neon theme resource.",
+      "0.3.0: Added file metadata for architecture traceability."
+    ]
+  },
   "background": "#081014",
   "surface": "#101b22",
   "elevated": "#0d161c",

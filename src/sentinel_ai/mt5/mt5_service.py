@@ -2,11 +2,12 @@
 MODULE: MT5-002
 FILE: MT5-002-001
 Module Name: MetaTrader 5 Service
-Version: 0.2.0
+Version: 0.3.0
 Purpose: Provides isolated, read-only MT5 connection and market-data access for Sentinel AI.
 Dependencies: datetime, logging, pandas, sentinel_ai.config, sentinel_ai.models.market, sentinel_ai.mt5
 Change History:
 - 0.2.0: Added connection status, account snapshot, symbol validation, and OHLC data fetching without trade execution.
+- 0.3.0: Improved MT5 import diagnostics and preserved normalized candle output for market feed service.
 """
 
 from __future__ import annotations
@@ -33,12 +34,14 @@ class MetaTrader5Service:
         self._mt5: Any | None = None
         self._connected = False
         self._last_status = Mt5ConnectionStatus(False, "MT5 service not initialized.")
+        self._last_import_error: str | None = None
 
     def connect(self) -> Mt5ConnectionStatus:
         """Connect to the local MT5 terminal and return a safe status object."""
         mt5_module = self._load_mt5_module()
         if mt5_module is None:
-            return self._set_status(False, "MetaTrader5 Python package is not installed.")
+            message = self._last_import_error or "MetaTrader5 Python package is not installed."
+            return self._set_status(False, message)
 
         initialized = self._initialize_terminal(mt5_module)
         if not initialized:
@@ -153,9 +156,15 @@ class MetaTrader5Service:
         """Import MetaTrader5 lazily so non-MT5 validation can still compile."""
         try:
             import MetaTrader5 as mt5_module
-        except ImportError:
+        except ImportError as error:
+            self._last_import_error = (
+                "MetaTrader5 Python package could not be imported. "
+                "Verify package installation and NumPy 1.x compatibility. "
+                f"Import error: {error}"
+            )
             self._logger.exception("MetaTrader5 package import failed.")
             return None
+        self._last_import_error = None
         return mt5_module
 
     def _read_status(self, message: str) -> Mt5ConnectionStatus:

@@ -2,12 +2,13 @@
 MODULE: SVC-001
 FILE: SVC-001-001
 Module Name: Service Contracts
-Version: 0.2.0
+Version: 0.3.0
 Purpose: Defines replaceable service interfaces for analysis, market data, prediction, trading, learning, and notifications.
 Dependencies: abc, pandas, sentinel_ai.models.market, sentinel_ai.models.prediction
 Change History:
 - 0.1.0: Added runtime service contracts for modular expansion.
 - 0.2.0: Added market data service contract for MT5 connection foundation.
+- 0.3.0: Added candle feed contract for validated market data snapshots.
 """
 
 from __future__ import annotations
@@ -16,7 +17,12 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from sentinel_ai.models.market import Mt5AccountSnapshot, Mt5ConnectionStatus, SymbolValidationResult
+from sentinel_ai.models.market import (
+    MarketDataSnapshot,
+    Mt5AccountSnapshot,
+    Mt5ConnectionStatus,
+    SymbolValidationResult,
+)
 from sentinel_ai.models.prediction import PredictionRecord
 
 
@@ -52,6 +58,25 @@ class MarketDataServiceContract(ABC):
     def fetch_ohlc(self, symbol: str, timeframe: str, bar_count: int | None = None) -> pd.DataFrame:
         """Fetch normalized OHLCV market data."""
         raise NotImplementedError("MarketDataServiceContract.fetch_ohlc must be implemented by a market data adapter.")
+
+
+class CandleFeedServiceContract(ABC):
+    """Define the contract for validated candle feed services."""
+
+    @abstractmethod
+    def load_snapshot(self, symbol: str, timeframe: str, bar_count: int) -> MarketDataSnapshot:
+        """Load and return one validated market data snapshot."""
+        raise NotImplementedError("CandleFeedServiceContract.load_snapshot must be implemented by a feed service.")
+
+    @abstractmethod
+    def latest_snapshot(self) -> MarketDataSnapshot | None:
+        """Return the latest validated market data snapshot when available."""
+        raise NotImplementedError("CandleFeedServiceContract.latest_snapshot must be implemented by a feed service.")
+
+    @abstractmethod
+    def chart_payload(self) -> list[dict[str, float | int]]:
+        """Return a JSON-serializable chart payload for the latest snapshot."""
+        raise NotImplementedError("CandleFeedServiceContract.chart_payload must be implemented by a feed service.")
 
 
 class AnalysisPipelineContract(ABC):

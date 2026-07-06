@@ -2,12 +2,13 @@
 MODULE: APP-001
 FILE: APP-001-001
 Module Name: Qt Application Bootstrapper
-Version: 0.2.0
-Purpose: Starts Sentinel AI with configured services, theme, welcome gate, MT5 status, and main window.
-Dependencies: sys, PySide6.QtWidgets, sentinel_ai.gui, sentinel_ai.services
+Version: 0.3.0
+Purpose: Starts Sentinel AI with configured services, theme, welcome gate, MT5 status, market feed, and main window.
+Dependencies: sys, PySide6.QtWidgets, sentinel_ai.gui, sentinel_ai.market_data, sentinel_ai.services
 Change History:
 - 0.1.0: Added production startup flow with mandatory manual welcome window.
 - 0.2.0: Added MT5 connection initialization and safe market status reporting without trading execution.
+- 0.3.0: Added validated market data feed loading without prediction or trade execution logic.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
 from sentinel_ai.gui.main_window import MainWindow
 from sentinel_ai.gui.theme import ThemeService
 from sentinel_ai.gui.welcome_window import WelcomeWindow
+from sentinel_ai.market_data.candle_validator import CandleDataValidationError
 from sentinel_ai.mt5.exceptions import Mt5ServiceError
 from sentinel_ai.services.app_context import ApplicationContextFactory
 
@@ -72,42 +74,55 @@ class SentinelApplication:
         message = f"{status.message} Symbol {symbol_status.symbol}: {symbol_status.message}"
         self._main_window.set_service_status(message)
         self._main_window.set_trading_controls_enabled(False)
+        if self._context.config.market_data.startup_load:
+            self._refresh_market_feed(self._context.config.trading.default_timeframe)
 
     def _refresh_dashboard_statistics(self) -> None:
         """Refresh dashboard statistics from the prediction repository."""
         statistics = self._context.prediction_repository.summary_statistics()
         self._main_window.update_statistics_panel(statistics, "Statistical review pending sufficient closed trades")
 
+    def _refresh_market_feed(self, timeframe: str) -> None:
+        """Load a validated market data snapshot for the selected timeframe."""
+        try:
+            snapshot = self._context.market_data_feed_service.load_snapshot(
+                symbol=self._context.config.trading.symbol,
+                timeframe=timeframe,
+                bar_count=self._context.config.market_data.default_feed_bar_count,
+            )
+            self._main_window.update_market_feed_status(snapshot)
+        except (Mt5ServiceError, CandleDataValidationError, ValueError) as error:
+            self._context.logger.warning("Market feed refresh failed: %s", error)
+            self._main_window.set_service_status(f"Market feed unavailable for {timeframe}: {error}")
+
     def _show_settings_information(self) -> None:
         """Display the active configuration and data paths without changing settings."""
         status = self._context.mt5_service.connection_status()
+        latest_snapshot = self._context.market_data_feed_service.latest_snapshot()
+        if latest_snapshot is None:
+            feed_status = "No validated market feed snapshot loaded."
+        else:
+            feed_status = (
+                f"{latest_snapshot.symbol} {latest_snapshot.timeframe}: "
+                f"{latest_snapshot.candle_count} validated candles loaded."
+            )
         QMessageBox.information(
             self._main_window,
             "Sentinel AI Settings",
             "Configuration and database are initialized.\n\n"
             f"Database:\n{self._context.database_service.database_path}\n\n"
-            f"MT5 Status:\n{status.message}",
+            f"MT5 Status:\n{status.message}\n\n"
+            f"Market Feed:\n{feed_status}",
         )
 
     def _handle_timeframe_changed(self, timeframe: str) -> None:
-        """Record the selected timeframe and safely verify market-data availability."""
+        """Record the selected timeframe and refresh validated market-data availability."""
         self._context.logger.info("Timeframe selected: %s", timeframe)
-        try:
-            status = self._context.mt5_service.connection_status()
-            if not status.connected:
-                self._main_window.set_service_status(f"Selected timeframe: {timeframe}. {status.message}")
-                return
-            bars = self._context.mt5_service.fetch_ohlc(
-                self._context.config.trading.symbol,
-                timeframe,
-                self._context.config.mt5.default_bar_count,
-            )
-            self._main_window.set_service_status(
-                f"Selected timeframe: {timeframe}. Loaded {len(bars)} bars for {self._context.config.trading.symbol}."
-            )
-        except (Mt5ServiceError, ValueError) as error:
-            self._context.logger.warning("Market data fetch failed: %s", error)
-            self._main_window.set_service_status(f"Selected timeframe: {timeframe}. Market data unavailable: {error}")
+        status = self._context.mt5_service.connection_status()
+        if not status.connected:
+            self._main_window.set_service_status(f"Selected timeframe: {timeframe}. {status.message}")
+            return
+        self._refresh_market_feed(timeframe)
 
 
 def run_application() -> int:

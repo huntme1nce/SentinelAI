@@ -2,11 +2,12 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-Version: 0.1.0
+Version: 0.3.0
 Purpose: Provides the Sentinel AI main shell layout without embedding trading logic.
-Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets
+Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models.market
 Change History:
 - 0.1.0: Added approved main GUI layout with toolbar, chart, prediction panel, statistics panel, and status bar.
+- 0.3.0: Added GUI-only market feed status update method for validated snapshots.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ from sentinel_ai.config.config_schema import SentinelConfig
 from sentinel_ai.gui.widgets.chart_panel import ChartPanel
 from sentinel_ai.gui.widgets.prediction_panel import PredictionPanel
 from sentinel_ai.gui.widgets.statistics_panel import StatisticsPanel
+from sentinel_ai.models.market import MarketDataSnapshot
 
 
 class MainWindow(QMainWindow):
@@ -128,6 +130,13 @@ class MainWindow(QMainWindow):
         """Show a service-originated message in the status bar and chart status area."""
         self.statusBar().showMessage(message)
         self._chart_panel.set_chart_status(message)
+
+    def update_market_feed_status(self, snapshot: MarketDataSnapshot) -> None:
+        """Display validated market feed status without calculating trading signals."""
+        self.statusBar().showMessage(
+            f"Loaded {snapshot.candle_count} candles for {snapshot.symbol} {snapshot.timeframe}."
+        )
+        self._chart_panel.set_market_snapshot(snapshot)
 
     def set_trading_controls_enabled(self, enabled: bool) -> None:
         """Enable or disable trading controls based on trading service availability."""
