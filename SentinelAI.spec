@@ -1,13 +1,14 @@
 # MODULE: OPS-002
 # FILE: OPS-002-001
 # Module Name: PyInstaller Specification
-# Version: 0.4.0
+# Version: 0.5.0
 # Purpose: Builds Sentinel AI as a Windows standalone application with packaged resources.
 # Dependencies: PyInstaller, pathlib
 # Change History:
 # - 0.1.0: Added PyInstaller collection build for Sprint 1 foundation.
 # - 0.3.0: Added explicit MetaTrader5 hidden import for lazy MT5 gateway loading.
 # - 0.4.0: Added Qt WebEngine hidden imports for embedded chart rendering.
+- 0.5.0: Preserved packaged resources for live market refresh engine.
 
 # -*- mode: python ; coding: utf-8 -*-
 

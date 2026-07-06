@@ -2,13 +2,14 @@
 MODULE: GUI-003
 FILE: GUI-003-001
 Module Name: Chart Panel
-Version: 0.4.0
+Version: 0.5.0
 Purpose: Provides the central embedded live candlestick chart container without trading or analysis logic.
 Dependencies: json, PySide6.QtCore, PySide6.QtWidgets, PySide6.QtWebEngineWidgets, sentinel_ai.models.market, sentinel_ai.utils.paths
 Change History:
 - 0.1.0: Added chart panel shell with strict GUI-only responsibility.
 - 0.3.0: Added market snapshot status rendering without analysis or trading logic.
 - 0.4.0: Added embedded web chart rendering from validated chart-feed payloads.
+- 0.5.0: Reused snapshot rendering path for live refresh updates without GUI market logic.
 """
 
 from __future__ import annotations

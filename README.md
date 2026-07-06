@@ -2,25 +2,26 @@
 MODULE: DOC-001
 FILE: DOC-001-001
 Module Name: Project README
-Version: 0.4.0
-Purpose: Documents Sentinel AI setup, sprint scope, validation, chart rendering, and build instructions.
+Version: 0.5.0
+Purpose: Documents Sentinel AI setup, sprint scope, validation, chart rendering, live refresh, and build instructions.
 Dependencies: Markdown
 Change History:
 - 0.1.0: Added Sprint 1 documentation.
 - 0.2.0: Added Sprint 2 MT5 connection notes.
 - 0.3.0: Added Sprint 3 market data feed notes and NumPy compatibility guidance.
 - 0.4.0: Added Sprint 4 live chart rendering notes.
+- 0.5.0: Added Sprint 5 live market refresh engine notes.
 -->
 
 # Sentinel AI
 
-Sentinel AI is a professional Windows desktop trading workstation foundation built with PySide6, SQLite, JSON configuration, MT5 market-data integration, validated market feed services, embedded chart rendering, and service-based architecture.
+Sentinel AI is a professional Windows desktop trading workstation foundation built with PySide6, SQLite, JSON configuration, MT5 market-data integration, validated market feed services, embedded chart rendering, live chart refresh, and service-based architecture.
 
 ## Current Sprint
 
-Version: 0.4.0
+Version: 0.5.0
 
-Sprint 4 adds Live Chart Rendering while preserving the Sprint 1 GUI layout, Sprint 2 MT5 connection architecture, and Sprint 3 market data feed layer.
+Sprint 5 adds the Live Market Refresh Engine while preserving the Sprint 1 GUI layout, Sprint 2 MT5 connection architecture, Sprint 3 market data feed layer, and Sprint 4 chart renderer.
 
 ## Completed Sprint Scope
 
@@ -71,7 +72,19 @@ Sprint 4 adds Live Chart Rendering while preserving the Sprint 1 GUI layout, Spr
 - No trade execution logic
 - No GUI layout redesign
 
-Trade execution, prediction generation, and learning adjustments are intentionally outside Sprint 4 scope.
+### Sprint 5: Live Market Refresh Engine
+
+- Service-driven refresh timer for validated MT5 candle snapshots
+- Automatic chart updates after startup
+- Timeframe-specific refresh intervals in JSON configuration
+- Safe refresh restart when the selected timeframe changes
+- Non-destructive status bar updates for live refresh events
+- Refresh failure handling without closing the app or replacing the chart layout
+- No prediction logic
+- No trade execution logic
+- No GUI layout redesign
+
+Trade execution, prediction generation, and learning adjustments are intentionally outside Sprint 5 scope.
 
 ## Run Locally
 
@@ -94,7 +107,7 @@ python scripts/validate_sprint.py
 Expected result:
 
 ```text
-Sprint validation passed: source compiled, resources verified, config loaded, MT5 mapping available, market feed conversion validated, chart assets ready.
+Sprint validation passed: source compiled, resources verified, config loaded, MT5 mapping available, market feed conversion validated, chart assets ready, live refresh configured.
 ```
 
 ## Build EXE
@@ -110,8 +123,22 @@ The build output is created under `dist\SentinelAI`.
 - Install and log in to your broker's MT5 terminal before starting Sentinel AI.
 - The configured default symbol is `GOLDm#`.
 - If your broker uses a different symbol name, update the writable config file under `%LOCALAPPDATA%\SentinelAI\config\config.json`.
-- Sprint 4 is read-only for market data and does not place trades.
+- Sprint 5 is read-only for market data and does not place trades.
 - Keep `numpy==1.26.4` unless MT5 package compatibility is verified against a newer version.
+
+## Live Refresh Notes
+
+Default refresh intervals are configured under `market_data.refresh_intervals_seconds`:
+
+- `M1`: 1 second
+- `M5`: 2 seconds
+- `M15`: 5 seconds
+- `M30`: 10 seconds
+- `H1`: 15 seconds
+- `H4`: 30 seconds
+- `D1`: 60 seconds
+
+The GUI does not call MT5 directly. The live chart receives validated snapshots from `MarketRefreshService` through application-level signal handling.
 
 ## Chart Notes
 

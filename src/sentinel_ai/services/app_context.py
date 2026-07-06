@@ -2,7 +2,7 @@
 MODULE: SVC-002
 FILE: SVC-002-001
 Module Name: Application Context
-Version: 0.4.0
+Version: 0.5.0
 Purpose: Composes Sentinel AI services without coupling GUI to trading or persistence internals.
 Dependencies: logging, sentinel_ai.config, sentinel_ai.database, sentinel_ai.logging_service, sentinel_ai.market_data, sentinel_ai.mt5
 Change History:
@@ -10,6 +10,7 @@ Change History:
 - 0.2.0: Added MT5 market data service composition.
 - 0.3.0: Added validated market data feed service composition.
 - 0.4.0: Preserved service composition while GUI chart rendering remains isolated.
+- 0.5.0: Added live market refresh service composition.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from sentinel_ai.logging_service.logging_service import LoggingService
 from sentinel_ai.market_data.candle_validator import CandleDataValidator
 from sentinel_ai.market_data.lightweight_chart_feed import LightweightChartFeedAdapter
 from sentinel_ai.market_data.market_data_feed import MarketDataFeedService
+from sentinel_ai.market_data.market_refresh_service import MarketRefreshService
 from sentinel_ai.mt5.mt5_service import MetaTrader5Service
 
 
@@ -38,6 +40,7 @@ class ApplicationContext:
     prediction_repository: PredictionRepository
     mt5_service: MetaTrader5Service
     market_data_feed_service: MarketDataFeedService
+    market_refresh_service: MarketRefreshService
 
 
 class ApplicationContextFactory:
@@ -58,6 +61,10 @@ class ApplicationContextFactory:
             chart_feed_adapter=LightweightChartFeedAdapter(),
             logger=logger,
         )
+        market_refresh_service = MarketRefreshService(
+            market_data_feed_service=market_data_feed_service,
+            logger=logger,
+        )
         logger.info("Application context initialized.")
         return ApplicationContext(
             config=config,
@@ -66,4 +73,5 @@ class ApplicationContextFactory:
             prediction_repository=prediction_repository,
             mt5_service=mt5_service,
             market_data_feed_service=market_data_feed_service,
+            market_refresh_service=market_refresh_service,
         )

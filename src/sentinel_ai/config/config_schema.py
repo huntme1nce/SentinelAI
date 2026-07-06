@@ -2,7 +2,7 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-Version: 0.4.0
+Version: 0.5.0
 Purpose: Defines validated configuration models for Sentinel AI.
 Dependencies: dataclasses, typing
 Change History:
@@ -10,6 +10,7 @@ Change History:
 - 0.2.0: Added MT5 connection configuration for Sprint 2.
 - 0.3.0: Added market data feed configuration for Sprint 3.
 - 0.4.0: Preserved schema for Sprint 4 chart rendering without adding trading settings.
+- 0.5.0: Added market-data live refresh configuration with timeframe-specific intervals.
 """
 
 from __future__ import annotations
@@ -90,15 +91,37 @@ class MarketDataConfig:
     startup_load: bool
     default_feed_bar_count: int
     max_chart_candles: int
+    auto_refresh_enabled: bool
+    refresh_intervals_seconds: dict[str, int]
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MarketDataConfig":
         """Create a MarketDataConfig from a dictionary."""
+        raw_intervals = data["refresh_intervals_seconds"]
+        if not isinstance(raw_intervals, dict):
+            raise ValueError("market_data.refresh_intervals_seconds must be a JSON object.")
+        intervals = {str(key).upper(): int(value) for key, value in raw_intervals.items()}
+        if not intervals:
+            raise ValueError("market_data.refresh_intervals_seconds must define at least one timeframe interval.")
+        for timeframe, interval_seconds in intervals.items():
+            if not timeframe:
+                raise ValueError("market_data.refresh_intervals_seconds contains an empty timeframe key.")
+            if interval_seconds < 1:
+                raise ValueError(f"Refresh interval for {timeframe} must be at least one second.")
         return cls(
             startup_load=bool(data["startup_load"]),
             default_feed_bar_count=int(data["default_feed_bar_count"]),
             max_chart_candles=int(data["max_chart_candles"]),
+            auto_refresh_enabled=bool(data["auto_refresh_enabled"]),
+            refresh_intervals_seconds=intervals,
         )
+
+    def refresh_interval_for(self, timeframe: str) -> int:
+        """Return the configured refresh interval for a timeframe."""
+        normalized_timeframe = str(timeframe).strip().upper()
+        if normalized_timeframe in self.refresh_intervals_seconds:
+            return self.refresh_intervals_seconds[normalized_timeframe]
+        return self.refresh_intervals_seconds.get("DEFAULT", 5)
 
 
 @dataclass(frozen=True)

@@ -3,18 +3,19 @@
     "module_id": "CFG-003",
     "file_id": "CFG-003-001",
     "module_name": "Default Configuration Resource",
-    "version": "0.4.0",
-    "purpose": "Provides packaged default Sentinel AI configuration values.",
+    "version": "0.5.0",
+    "purpose": "Provides packaged default Sentinel AI configuration values, including live market refresh settings.",
     "change_history": [
       "0.1.0: Added packaged defaults for Sprint 1 foundation.",
       "0.2.0: Added MT5 connection defaults.",
       "0.3.0: Added market data feed defaults and application version update.",
-      "0.4.0: Added live chart rendering resource defaults and application version update."
+      "0.4.0: Added live chart rendering resource defaults and application version update.",
+      "0.5.0: Added live market refresh defaults and application version update."
     ]
   },
   "application": {
     "name": "Sentinel AI",
-    "version": "0.4.0",
+    "version": "0.5.0",
     "environment": "production"
   },
   "trading": {
@@ -48,6 +49,17 @@
   "market_data": {
     "startup_load": true,
     "default_feed_bar_count": 300,
-    "max_chart_candles": 1000
+    "max_chart_candles": 1000,
+    "auto_refresh_enabled": true,
+    "refresh_intervals_seconds": {
+      "M1": 1,
+      "M5": 2,
+      "M15": 5,
+      "M30": 10,
+      "H1": 15,
+      "H4": 30,
+      "D1": 60,
+      "DEFAULT": 5
+    }
   }
 }

@@ -2,13 +2,14 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-Version: 0.4.0
+Version: 0.5.0
 Purpose: Provides the Sentinel AI main shell layout without embedding trading or analysis logic.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models.market
 Change History:
 - 0.1.0: Added approved main GUI layout with toolbar, chart, prediction panel, statistics panel, and status bar.
 - 0.3.0: Added GUI-only market feed status update method for validated snapshots.
 - 0.4.0: Routed validated snapshots to the embedded chart panel without changing layout.
+- 0.5.0: Added GUI-only methods for live market snapshot and runtime status updates.
 """
 
 from __future__ import annotations
@@ -132,11 +133,26 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(message)
         self._chart_panel.set_chart_status(message)
 
+    def update_runtime_status(self, message: str) -> None:
+        """Show a runtime status message without replacing chart candle rendering."""
+        self.statusBar().showMessage(message)
+
     def update_market_feed_status(self, snapshot: MarketDataSnapshot) -> None:
         """Display validated market feed status without calculating trading signals."""
         self.statusBar().showMessage(
             f"Loaded {snapshot.candle_count} candles for {snapshot.symbol} {snapshot.timeframe}."
         )
+        self._chart_panel.set_market_snapshot(snapshot)
+
+    def update_live_market_snapshot(self, snapshot: MarketDataSnapshot) -> None:
+        """Display a live refreshed market snapshot without calculating trading signals."""
+        latest = snapshot.latest_candle
+        if latest is None:
+            self.statusBar().showMessage(f"Live update received for {snapshot.symbol} {snapshot.timeframe}: no candles.")
+        else:
+            self.statusBar().showMessage(
+                f"Live update: {snapshot.symbol} {snapshot.timeframe} close {latest.close:.2f}."
+            )
         self._chart_panel.set_market_snapshot(snapshot)
 
     def set_trading_controls_enabled(self, enabled: bool) -> None:

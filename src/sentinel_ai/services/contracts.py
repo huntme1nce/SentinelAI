@@ -2,7 +2,7 @@
 MODULE: SVC-001
 FILE: SVC-001-001
 Module Name: Service Contracts
-Version: 0.4.0
+Version: 0.5.0
 Purpose: Defines replaceable service interfaces for analysis, market data, prediction, trading, learning, and notifications.
 Dependencies: abc, pandas, sentinel_ai.models.market, sentinel_ai.models.prediction
 Change History:
@@ -10,6 +10,7 @@ Change History:
 - 0.2.0: Added market data service contract for MT5 connection foundation.
 - 0.3.0: Added candle feed contract for validated market data snapshots.
 - 0.4.0: Preserved service contracts for chart rendering sprint without adding trading execution.
+- 0.5.0: Added market refresh service contract for live feed updates.
 """
 
 from __future__ import annotations
@@ -78,6 +79,25 @@ class CandleFeedServiceContract(ABC):
     def chart_payload(self) -> list[dict[str, float | int]]:
         """Return a JSON-serializable chart payload for the latest snapshot."""
         raise NotImplementedError("CandleFeedServiceContract.chart_payload must be implemented by a feed service.")
+
+
+class MarketRefreshServiceContract(ABC):
+    """Define the contract for timed market data refresh services."""
+
+    @abstractmethod
+    def start(self, symbol: str, timeframe: str, bar_count: int, interval_seconds: int) -> None:
+        """Start timed refresh for a symbol and timeframe."""
+        raise NotImplementedError("MarketRefreshServiceContract.start must be implemented by a refresh service.")
+
+    @abstractmethod
+    def stop(self) -> None:
+        """Stop timed market refresh."""
+        raise NotImplementedError("MarketRefreshServiceContract.stop must be implemented by a refresh service.")
+
+    @abstractmethod
+    def refresh_once(self) -> None:
+        """Run one market refresh cycle."""
+        raise NotImplementedError("MarketRefreshServiceContract.refresh_once must be implemented by a refresh service.")
 
 
 class AnalysisPipelineContract(ABC):

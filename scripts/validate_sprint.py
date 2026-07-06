@@ -2,14 +2,15 @@
 MODULE: OPS-001
 FILE: OPS-001-001
 Module Name: Sprint Validator
-Version: 0.4.0
-Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, and chart assets.
+Version: 0.5.0
+Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, and refresh configuration.
 Dependencies: compileall, datetime, json, logging, pathlib, sys, pandas
 Change History:
 - 0.1.0: Added compile and resource validation for stable milestone handoff.
 - 0.2.0: Added Sprint 2 configuration and MT5 timeframe mapper validation.
 - 0.3.0: Added Sprint 3 market data feed validation using a deterministic gateway.
 - 0.4.0: Added Sprint 4 embedded chart resource and payload serialization validation.
+- 0.5.0: Added Sprint 5 live refresh service file and configuration validation.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ import pandas as pd
 
 
 def main() -> int:
-    """Compile project source and verify required Sprint 4 chart rendering components."""
+    """Compile project source and verify required Sprint 5 live refresh components."""
     project_root = Path(__file__).resolve().parents[1]
     source_root = project_root / "src"
     required_files = [
@@ -38,6 +39,7 @@ def main() -> int:
         source_root / "sentinel_ai" / "market_data" / "candle_validator.py",
         source_root / "sentinel_ai" / "market_data" / "lightweight_chart_feed.py",
         source_root / "sentinel_ai" / "market_data" / "market_data_feed.py",
+        source_root / "sentinel_ai" / "market_data" / "market_refresh_service.py",
         project_root / "SentinelAI.spec",
         project_root / "requirements.txt",
     ]
@@ -121,6 +123,19 @@ def main() -> int:
     if config.market_data.default_feed_bar_count < 1:
         print("Market data configuration validation failed.", file=sys.stderr)
         return 1
+    if not config.market_data.auto_refresh_enabled:
+        print("Market refresh configuration should be enabled by default for Sprint 5.", file=sys.stderr)
+        return 1
+    if config.market_data.refresh_interval_for("M5") < 1:
+        print("Market refresh interval validation failed.", file=sys.stderr)
+        return 1
+
+    refresh_service_resource = (source_root / "sentinel_ai" / "market_data" / "market_refresh_service.py").read_text(
+        encoding="utf-8"
+    )
+    if "class MarketRefreshService" not in refresh_service_resource or "snapshot_refreshed" not in refresh_service_resource:
+        print("Market refresh service validation failed.", file=sys.stderr)
+        return 1
 
     feed_service = MarketDataFeedService(
         market_data_gateway=_DeterministicMarketDataGateway(),
@@ -146,7 +161,7 @@ def main() -> int:
 
     print(
         "Sprint validation passed: source compiled, resources verified, config loaded, "
-        "MT5 mapping available, market feed conversion validated, chart assets ready."
+        "MT5 mapping available, market feed conversion validated, chart assets ready, live refresh configured."
     )
     return 0
 
