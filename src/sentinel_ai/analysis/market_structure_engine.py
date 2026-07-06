@@ -2,11 +2,12 @@
 MODULE: ANL-001
 FILE: ANL-001-001
 Module Name: Market Structure Engine
-Version: 0.7.0
-Purpose: Detects confirmed swing highs, swing lows, structural bias, and basic break-of-structure conditions from validated candles.
+Version: 0.9.0
+Purpose: Detects confirmed swing highs, swing lows, structural bias, and persistent close-based break-of-structure events from validated candles.
 Dependencies: datetime, logging, sentinel_ai.config.config_schema, sentinel_ai.models.market, sentinel_ai.models.market_structure
 Change History:
 - 0.7.0: Added read-only market structure engine foundation without prediction or trading execution.
+- 0.9.0: Added historical BOS detection and summary visibility without changing prediction behavior.
 """
 
 from __future__ import annotations
@@ -42,9 +43,10 @@ class MarketStructureEngine:
             return structure_snapshot
 
         swing_highs, swing_lows = self._detect_swing_points(candles)
-        latest_break = self._detect_latest_structure_break(candles, swing_highs, swing_lows)
+        historical_breaks = self._detect_structure_breaks(candles, swing_highs, swing_lows)
+        latest_break = historical_breaks[-1] if historical_breaks else None
         bias = self._determine_bias(swing_highs, swing_lows, latest_break)
-        summary = self._build_summary(bias, swing_highs, swing_lows, latest_break, len(candles))
+        summary = self._build_summary(bias, swing_highs, swing_lows, latest_break, historical_breaks, len(candles))
         structure_snapshot = MarketStructureSnapshot(
             symbol=market_snapshot.symbol,
             timeframe=market_snapshot.timeframe,
@@ -52,6 +54,7 @@ class MarketStructureEngine:
             swing_highs=swing_highs,
             swing_lows=swing_lows,
             latest_break=latest_break,
+            historical_breaks=historical_breaks,
             analyzed_candle_count=len(candles),
             generated_at=datetime.now(timezone.utc),
             summary=summary,
@@ -108,35 +111,55 @@ class MarketStructureEngine:
         return abs(candidate.price - previous_swings[-1].price) >= minimum_distance
 
     @staticmethod
-    def _detect_latest_structure_break(
+    def _detect_structure_breaks(
         candles: tuple[MarketBar, ...],
         swing_highs: tuple[SwingPoint, ...],
         swing_lows: tuple[SwingPoint, ...],
-    ) -> StructureBreak | None:
-        """Detect the latest close-based break of the most recent confirmed swing level."""
-        latest_candle = candles[-1] if candles else None
-        if latest_candle is None:
-            return None
+    ) -> tuple[StructureBreak, ...]:
+        """Detect historical close-based BOS events and preserve them for chart review."""
+        if not candles:
+            return ()
 
-        latest_high = swing_highs[-1] if swing_highs else None
-        latest_low = swing_lows[-1] if swing_lows else None
-        if latest_high is not None and latest_candle.close > latest_high.price:
-            return StructureBreak(
-                direction="BULLISH",
-                reference_price=latest_high.price,
-                reference_time=latest_high.time,
-                broken_at=latest_candle.time,
-                close_price=latest_candle.close,
-            )
-        if latest_low is not None and latest_candle.close < latest_low.price:
-            return StructureBreak(
-                direction="BEARISH",
-                reference_price=latest_low.price,
-                reference_time=latest_low.time,
-                broken_at=latest_candle.time,
-                close_price=latest_candle.close,
-            )
-        return None
+        breaks: list[StructureBreak] = []
+        broken_references: set[tuple[str, datetime, float]] = set()
+        for candle in candles:
+            high_reference = MarketStructureEngine._latest_prior_swing(swing_highs, candle.time)
+            low_reference = MarketStructureEngine._latest_prior_swing(swing_lows, candle.time)
+            if high_reference is not None and candle.close > high_reference.price:
+                reference_key = ("BULLISH", high_reference.time, float(high_reference.price))
+                if reference_key not in broken_references:
+                    breaks.append(
+                        StructureBreak(
+                            direction="BULLISH",
+                            reference_price=high_reference.price,
+                            reference_time=high_reference.time,
+                            broken_at=candle.time,
+                            close_price=candle.close,
+                        )
+                    )
+                    broken_references.add(reference_key)
+            if low_reference is not None and candle.close < low_reference.price:
+                reference_key = ("BEARISH", low_reference.time, float(low_reference.price))
+                if reference_key not in broken_references:
+                    breaks.append(
+                        StructureBreak(
+                            direction="BEARISH",
+                            reference_price=low_reference.price,
+                            reference_time=low_reference.time,
+                            broken_at=candle.time,
+                            close_price=candle.close,
+                        )
+                    )
+                    broken_references.add(reference_key)
+        return tuple(sorted(breaks, key=lambda item: item.broken_at))
+
+    @staticmethod
+    def _latest_prior_swing(swings: tuple[SwingPoint, ...], candle_time: datetime) -> SwingPoint | None:
+        """Return the latest swing confirmed before a candle time."""
+        prior_swings = tuple(swing for swing in swings if swing.time < candle_time)
+        if not prior_swings:
+            return None
+        return prior_swings[-1]
 
     @staticmethod
     def _determine_bias(
@@ -169,6 +192,7 @@ class MarketStructureEngine:
         swing_highs: tuple[SwingPoint, ...],
         swing_lows: tuple[SwingPoint, ...],
         latest_break: StructureBreak | None,
+        historical_breaks: tuple[StructureBreak, ...],
         analyzed_candle_count: int,
     ) -> str:
         """Build a concise status summary for GUI display and logs."""
@@ -176,11 +200,18 @@ class MarketStructureEngine:
         latest_low = swing_lows[-1].price if swing_lows else None
         high_text = f"last swing high {latest_high:.2f}" if latest_high is not None else "no confirmed swing high"
         low_text = f"last swing low {latest_low:.2f}" if latest_low is not None else "no confirmed swing low"
-        break_text = "no close-based BOS"
+        latest_break_text = "latest BOS unavailable"
         if latest_break is not None:
             level_word = "above" if latest_break.is_bullish else "below"
-            break_text = f"{latest_break.direction.lower()} BOS {level_word} {latest_break.reference_price:.2f}"
-        return f"{bias}; {high_text}; {low_text}; {break_text}; analyzed {analyzed_candle_count} candles"
+            latest_break_text = f"latest {latest_break.direction.lower()} BOS {level_word} {latest_break.reference_price:.2f}"
+        bullish_break = next((item for item in reversed(historical_breaks) if item.is_bullish), None)
+        bearish_break = next((item for item in reversed(historical_breaks) if item.is_bearish), None)
+        bullish_text = f"last bullish BOS {bullish_break.reference_price:.2f}" if bullish_break is not None else "no bullish BOS"
+        bearish_text = f"last bearish BOS {bearish_break.reference_price:.2f}" if bearish_break is not None else "no bearish BOS"
+        return (
+            f"{bias}; {high_text}; {low_text}; {latest_break_text}; "
+            f"{bullish_text}; {bearish_text}; analyzed {analyzed_candle_count} candles"
+        )
 
     @staticmethod
     def _build_disabled_snapshot(market_snapshot: MarketDataSnapshot, analyzed_candle_count: int) -> MarketStructureSnapshot:
@@ -192,6 +223,7 @@ class MarketStructureEngine:
             swing_highs=(),
             swing_lows=(),
             latest_break=None,
+            historical_breaks=(),
             analyzed_candle_count=analyzed_candle_count,
             generated_at=datetime.now(timezone.utc),
             summary="Market structure engine disabled by configuration.",

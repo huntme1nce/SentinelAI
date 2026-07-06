@@ -2,11 +2,12 @@
 MODULE: MODEL-004
 FILE: MODEL-004-001
 Module Name: Market Structure Models
-Version: 0.7.0
+Version: 0.9.0
 Purpose: Defines immutable market-structure analysis results used by replaceable analysis engines.
 Dependencies: dataclasses, datetime
 Change History:
 - 0.7.0: Added swing point, structure break, and market structure snapshot models for Sprint 7.
+- 0.9.0: Added persistent historical BOS storage for chart visibility and analysis context.
 """
 
 from __future__ import annotations
@@ -37,7 +38,7 @@ class SwingPoint:
 
 @dataclass(frozen=True)
 class StructureBreak:
-    """Represent the latest confirmed break of market structure when present."""
+    """Represent a confirmed close-based break of market structure."""
 
     direction: str
     reference_price: float
@@ -55,6 +56,11 @@ class StructureBreak:
         """Return True when the structure break is bearish."""
         return self.direction == "BEARISH"
 
+    @property
+    def label(self) -> str:
+        """Return the compact chart label for this structure break."""
+        return "BOS↑" if self.is_bullish else "BOS↓"
+
 
 @dataclass(frozen=True)
 class MarketStructureSnapshot:
@@ -66,6 +72,7 @@ class MarketStructureSnapshot:
     swing_highs: tuple[SwingPoint, ...]
     swing_lows: tuple[SwingPoint, ...]
     latest_break: StructureBreak | None
+    historical_breaks: tuple[StructureBreak, ...]
     analyzed_candle_count: int
     generated_at: datetime
     summary: str
@@ -83,6 +90,22 @@ class MarketStructureSnapshot:
         if not self.swing_lows:
             return None
         return self.swing_lows[-1]
+
+    @property
+    def latest_bullish_break(self) -> StructureBreak | None:
+        """Return the most recent bullish BOS event when available."""
+        bullish_breaks = tuple(item for item in self.historical_breaks if item.is_bullish)
+        if not bullish_breaks:
+            return None
+        return bullish_breaks[-1]
+
+    @property
+    def latest_bearish_break(self) -> StructureBreak | None:
+        """Return the most recent bearish BOS event when available."""
+        bearish_breaks = tuple(item for item in self.historical_breaks if item.is_bearish)
+        if not bearish_breaks:
+            return None
+        return bearish_breaks[-1]
 
     @property
     def has_sufficient_structure(self) -> bool:

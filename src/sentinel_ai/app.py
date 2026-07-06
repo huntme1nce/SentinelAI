@@ -2,8 +2,8 @@
 MODULE: APP-001
 FILE: APP-001-001
 Module Name: Qt Application Bootstrapper
-Version: 0.8.0
-Purpose: Starts Sentinel AI with configured services, theme, welcome gate, MT5 status, symbol management, market feed, chart rendering, refresh loop, market structure, support/resistance context, and main window.
+Version: 0.9.0
+Purpose: Starts Sentinel AI with configured services, theme, welcome gate, MT5 status, symbol management, market feed, chart rendering, refresh loop, market structure, support/resistance, liquidity context, and main window.
 Dependencies: sys, PySide6.QtWidgets, sentinel_ai.gui, sentinel_ai.market_data, sentinel_ai.models, sentinel_ai.services
 Change History:
 - 0.1.0: Added production startup flow with mandatory manual welcome window.
@@ -15,6 +15,7 @@ Change History:
 - 0.6.0: Added broker/account-specific symbol resolution, selection, persistence, and chart reload flow.
 - 0.7.0: Added read-only market structure analysis updates from validated snapshots.
 - 0.8.0: Added read-only support/resistance analysis updates from market structure snapshots.
+- 0.9.0: Added read-only liquidity analysis updates and persistent BOS visibility wiring.
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ from sentinel_ai.gui.main_window import MainWindow
 from sentinel_ai.gui.theme import ThemeService
 from sentinel_ai.gui.welcome_window import WelcomeWindow
 from sentinel_ai.market_data.candle_validator import CandleDataValidationError
+from sentinel_ai.models.liquidity import LiquiditySnapshot
 from sentinel_ai.models.market import MarketDataSnapshot
 from sentinel_ai.models.market_structure import MarketStructureSnapshot
 from sentinel_ai.models.support_resistance import SupportResistanceSnapshot
@@ -145,7 +147,8 @@ class SentinelApplication:
             self._main_window.update_market_feed_status(snapshot)
             structure_snapshot = self._update_market_structure(snapshot)
             if structure_snapshot is not None:
-                self._update_support_resistance(snapshot, structure_snapshot)
+                support_resistance_snapshot = self._update_support_resistance(snapshot, structure_snapshot)
+                self._update_liquidity(snapshot, structure_snapshot, support_resistance_snapshot)
             return snapshot
         except (Mt5ServiceError, CandleDataValidationError, ValueError) as error:
             self._context.logger.warning("Market feed refresh failed: %s", error)
@@ -259,7 +262,8 @@ class SentinelApplication:
         self._main_window.update_live_market_snapshot(snapshot)
         structure_snapshot = self._update_market_structure(snapshot)
         if structure_snapshot is not None:
-            self._update_support_resistance(snapshot, structure_snapshot)
+            support_resistance_snapshot = self._update_support_resistance(snapshot, structure_snapshot)
+            self._update_liquidity(snapshot, structure_snapshot, support_resistance_snapshot)
 
     def _update_market_structure(self, snapshot: MarketDataSnapshot) -> MarketStructureSnapshot | None:
         """Analyze market structure from validated candles and route read-only context to the GUI."""
@@ -287,6 +291,25 @@ class SentinelApplication:
             return None
         self._main_window.update_support_resistance_status(support_resistance_snapshot, structure_snapshot.summary)
         return support_resistance_snapshot
+
+    def _update_liquidity(
+        self,
+        snapshot: MarketDataSnapshot,
+        structure_snapshot: MarketStructureSnapshot,
+        support_resistance_snapshot: SupportResistanceSnapshot | None,
+    ) -> LiquiditySnapshot | None:
+        """Analyze liquidity context from validated market structure and route read-only results to the GUI."""
+        try:
+            liquidity_snapshot = self._context.liquidity_engine.analyze(snapshot, structure_snapshot)
+        except ValueError as error:
+            self._context.logger.warning("Liquidity analysis failed: %s", error)
+            self._main_window.update_runtime_status(f"Liquidity unavailable: {error}")
+            return None
+        base_reason = structure_snapshot.summary
+        if support_resistance_snapshot is not None:
+            base_reason = f"{base_reason} | {support_resistance_snapshot.summary}"
+        self._main_window.update_liquidity_status(liquidity_snapshot, base_reason)
+        return liquidity_snapshot
 
     def _handle_market_refresh_failed(self, message: str) -> None:
         """Display a non-destructive refresh failure status."""

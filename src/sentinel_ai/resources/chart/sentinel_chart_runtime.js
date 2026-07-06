@@ -2,14 +2,15 @@
 MODULE: CHART-002
 FILE: CHART-002-001
 Module Name: Sentinel Chart Runtime
-Version: 0.8.0
-Purpose: Renders validated candlestick data with controlled live updates, chart panning, zooming, review-state preservation, market structure markers, and support/resistance zones.
+Version: 0.9.0
+Purpose: Renders validated candlestick data with controlled live updates, chart panning, zooming, market structure, support/resistance, and liquidity overlays.
 Dependencies: Browser Canvas API
 Change History:
 - 0.4.0: Added offline-safe candlestick renderer for the Sprint 4 embedded chart panel.
 - 0.5.1: Added drag-to-pan, mouse-wheel zoom, double-click reset, and chart-position preservation during live refresh.
 - 0.7.0: Added market structure marker and break-of-structure overlay rendering.
 - 0.8.0: Added support/resistance zone overlay rendering.
+- 0.9.0: Added persistent BOS rendering and liquidity overlay rendering with marker priority.
 */
 
 (function () {
@@ -36,6 +37,7 @@ Change History:
     crosshair: null,
     structure: {
       markers: [],
+      breaks: [],
       metadata: {
         bias: "-",
         summary: "",
@@ -48,6 +50,13 @@ Change History:
         summary: "",
         nearestSupport: null,
         nearestResistance: null,
+      },
+    },
+    liquidity: {
+      pools: [],
+      sweeps: [],
+      metadata: {
+        summary: "",
       },
     },
     view: {
@@ -105,8 +114,11 @@ Change History:
 
   function setMarketStructure(markers, metadata) {
     const normalizedMarkers = Array.isArray(markers) ? markers : [];
+    const nextMetadata = Object.assign({}, state.structure.metadata, metadata || {});
+    const normalizedBreaks = Array.isArray(nextMetadata.breaks) ? nextMetadata.breaks : [];
     state.structure.markers = normalizedMarkers.filter(isValidStructureMarker);
-    state.structure.metadata = Object.assign({}, state.structure.metadata, metadata || {});
+    state.structure.breaks = normalizedBreaks.filter(isValidStructureBreak);
+    state.structure.metadata = nextMetadata;
     renderChart();
   }
 
@@ -114,6 +126,15 @@ Change History:
     const normalizedZones = Array.isArray(zones) ? zones : [];
     state.supportResistance.zones = normalizedZones.filter(isValidSupportResistanceZone);
     state.supportResistance.metadata = Object.assign({}, state.supportResistance.metadata, metadata || {});
+    renderChart();
+  }
+
+  function setLiquidity(pools, sweeps, metadata) {
+    const normalizedPools = Array.isArray(pools) ? pools : [];
+    const normalizedSweeps = Array.isArray(sweeps) ? sweeps : [];
+    state.liquidity.pools = normalizedPools.filter(isValidLiquidityPool);
+    state.liquidity.sweeps = normalizedSweeps.filter(isValidLiquiditySweep);
+    state.liquidity.metadata = Object.assign({}, state.liquidity.metadata, metadata || {});
     renderChart();
   }
 
@@ -130,6 +151,27 @@ Change History:
       Number.isFinite(Number(marker.time)) &&
       Number.isFinite(Number(marker.price)) &&
       (marker.kind === "HIGH" || marker.kind === "LOW");
+  }
+
+  function isValidStructureBreak(item) {
+    return item &&
+      Number.isFinite(Number(item.time)) &&
+      Number.isFinite(Number(item.price)) &&
+      (item.direction === "BULLISH" || item.direction === "BEARISH");
+  }
+
+  function isValidLiquidityPool(pool) {
+    return pool &&
+      Number.isFinite(Number(pool.time)) &&
+      Number.isFinite(Number(pool.price)) &&
+      (pool.side === "BUY_SIDE" || pool.side === "SELL_SIDE");
+  }
+
+  function isValidLiquiditySweep(sweep) {
+    return sweep &&
+      Number.isFinite(Number(sweep.time)) &&
+      Number.isFinite(Number(sweep.wickPrice)) &&
+      (sweep.direction === "BULLISH" || sweep.direction === "BEARISH");
   }
 
   function isValidCandle(candle) {
@@ -163,6 +205,8 @@ Change History:
     drawSupportResistanceZones(layout, priceRange);
     drawCandles(layout, visibleCandles, priceRange);
     drawStructureMarkers(layout, visibleRange, priceRange);
+    drawStructureBreakMarkers(layout, visibleRange, priceRange);
+    drawLiquidityOverlays(layout, visibleRange, priceRange);
     drawAxes(layout, visibleRange);
     drawLatestPriceLine(layout, visibleCandles, priceRange);
     drawCrosshair(layout, visibleRange, priceRange);
@@ -380,10 +424,7 @@ Change History:
       return;
     }
 
-    const visibleTimeToIndex = new Map();
-    visibleRange.candles.forEach((candle, index) => {
-      visibleTimeToIndex.set(Number(candle.time), index);
-    });
+    const visibleTimeToIndex = createVisibleTimeIndex(visibleRange);
 
     context.save();
     context.font = "bold 10px Segoe UI, Arial";
@@ -414,20 +455,114 @@ Change History:
       context.fill();
       context.fillText(String(marker.label || (isHigh ? "SH" : "SL")), x, labelY);
     });
-
-    const latestBreak = state.structure.metadata.latestBreak;
-    if (latestBreak && Number.isFinite(Number(latestBreak.time)) && Number.isFinite(Number(latestBreak.price))) {
-      const breakIndex = visibleTimeToIndex.get(Number(latestBreak.time));
-      if (breakIndex !== undefined) {
-        const x = xForIndex(layout, breakIndex, visibleRange.candles.length);
-        const y = yForPrice(layout, priceRange, Number(latestBreak.price));
-        context.fillStyle = latestBreak.direction === "BULLISH" ? "#20c997" : "#f0526b";
-        context.fillRect(x - 21, y - 11, 42, 18);
-        context.fillStyle = "#031014";
-        context.fillText(String(latestBreak.label || "BOS"), x, y + 2);
-      }
-    }
     context.restore();
+  }
+
+  function drawStructureBreakMarkers(layout, visibleRange, priceRange) {
+    if (!state.structure.breaks || state.structure.breaks.length === 0) {
+      return;
+    }
+
+    const visibleTimeToIndex = createVisibleTimeIndex(visibleRange);
+    context.save();
+    context.font = "bold 12px Segoe UI, Arial";
+    context.textAlign = "center";
+    state.structure.breaks.forEach((breakItem) => {
+      const breakIndex = visibleTimeToIndex.get(Number(breakItem.time));
+      if (breakIndex === undefined) {
+        return;
+      }
+      const x = xForIndex(layout, breakIndex, visibleRange.candles.length);
+      const y = yForPrice(layout, priceRange, Number(breakItem.price));
+      const isBullish = breakItem.direction === "BULLISH";
+      const fillColor = isBullish ? "#20c997" : "#f0526b";
+      context.fillStyle = "rgba(2, 12, 16, 0.88)";
+      context.fillRect(x - 27, y - 14, 54, 23);
+      context.strokeStyle = fillColor;
+      context.lineWidth = 1.5;
+      context.strokeRect(x - 27, y - 14, 54, 23);
+      context.fillStyle = fillColor;
+      context.fillText(String(breakItem.label || (isBullish ? "BOS↑" : "BOS↓")), x, y + 2);
+    });
+    context.restore();
+  }
+
+  function drawLiquidityOverlays(layout, visibleRange, priceRange) {
+    drawLiquidityPools(layout, priceRange);
+    drawLiquiditySweeps(layout, visibleRange, priceRange);
+  }
+
+  function drawLiquidityPools(layout, priceRange) {
+    if (!state.liquidity.pools || state.liquidity.pools.length === 0) {
+      return;
+    }
+
+    context.save();
+    context.font = "bold 10px Segoe UI, Arial";
+    context.textAlign = "left";
+    state.liquidity.pools.forEach((pool) => {
+      const price = Number(pool.price);
+      if (!Number.isFinite(price)) {
+        return;
+      }
+      const y = yForPrice(layout, priceRange, price);
+      if (y < layout.plotTop || y > layout.plotBottom) {
+        return;
+      }
+      const isBuySide = pool.side === "BUY_SIDE";
+      const lineColor = pool.inducementCandidate ? "rgba(255, 219, 112, 0.90)" : (isBuySide ? "rgba(255, 206, 92, 0.52)" : "rgba(94, 215, 255, 0.52)");
+      const label = String(pool.label || (isBuySide ? "BSL" : "SSL"));
+      context.strokeStyle = lineColor;
+      context.setLineDash(pool.swept ? [2, 6] : [3, 5]);
+      context.lineWidth = pool.inducementCandidate ? 1.5 : 1;
+      context.beginPath();
+      context.moveTo(layout.plotLeft, Math.round(y) + 0.5);
+      context.lineTo(layout.plotRight, Math.round(y) + 0.5);
+      context.stroke();
+      context.setLineDash([]);
+      context.fillStyle = lineColor;
+      context.fillText(`${label} ${formatPrice(price)}`, layout.plotLeft + 10, y - 5);
+    });
+    context.restore();
+  }
+
+  function drawLiquiditySweeps(layout, visibleRange, priceRange) {
+    if (!state.liquidity.sweeps || state.liquidity.sweeps.length === 0) {
+      return;
+    }
+
+    const visibleTimeToIndex = createVisibleTimeIndex(visibleRange);
+    context.save();
+    context.font = "bold 11px Segoe UI, Arial";
+    context.textAlign = "center";
+    state.liquidity.sweeps.forEach((sweep) => {
+      const visibleIndex = visibleTimeToIndex.get(Number(sweep.time));
+      if (visibleIndex === undefined) {
+        return;
+      }
+      const isBullish = sweep.direction === "BULLISH";
+      const x = xForIndex(layout, visibleIndex, visibleRange.candles.length);
+      const y = yForPrice(layout, priceRange, Number(sweep.wickPrice));
+      const label = isBullish ? "LQ↑" : "LQ↓";
+      const fillColor = isBullish ? "#5ed7ff" : "#ffce5c";
+      const labelY = isBullish ? y + 26 : y - 22;
+      context.fillStyle = "rgba(2, 12, 16, 0.90)";
+      context.fillRect(x - 18, labelY - 14, 36, 18);
+      context.strokeStyle = fillColor;
+      context.lineWidth = 1.3;
+      context.strokeRect(x - 18, labelY - 14, 36, 18);
+      context.fillStyle = fillColor;
+      context.fillText(label, x, labelY);
+    });
+    context.restore();
+  }
+
+  function createVisibleTimeIndex(visibleRange) {
+    const visibleTimeToIndex = new Map();
+    visibleRange.candles.forEach((candle, index) => {
+      visibleTimeToIndex.set(Number(candle.time), index);
+    });
+    return visibleTimeToIndex;
   }
 
   function drawAxes(layout, visibleRange) {
@@ -544,7 +679,9 @@ Change History:
     const bias = state.structure.metadata.bias && state.structure.metadata.bias !== "-" ? ` | Structure: ${state.structure.metadata.bias}` : "";
     const srCount = state.supportResistance.zones ? state.supportResistance.zones.length : 0;
     const srText = srCount > 0 ? ` | S/R zones: ${srCount}` : "";
-    setStatus(`${symbol} ${timeframe} | ${visibleText} | Latest: ${latestClose} | ${latestTime}${bias}${srText} | ${mode} | ${zoom}`);
+    const sweepCount = state.liquidity.sweeps ? state.liquidity.sweeps.length : 0;
+    const liquidityText = sweepCount > 0 ? ` | LQ sweeps: ${sweepCount}` : "";
+    setStatus(`${symbol} ${timeframe} | ${visibleText} | Latest: ${latestClose} | ${latestTime}${bias}${srText}${liquidityText} | ${mode} | ${zoom}`);
   }
 
   function formatPrice(price) {
@@ -673,6 +810,7 @@ Change History:
     setCandles: setCandles,
     setMarketStructure: setMarketStructure,
     setSupportResistance: setSupportResistance,
+    setLiquidity: setLiquidity,
     setStatus: setStatus,
     render: renderChart,
     resetViewToLatest: function () {

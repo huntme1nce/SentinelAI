@@ -2,7 +2,7 @@
 MODULE: GUI-003
 FILE: GUI-003-001
 Module Name: Chart Panel
-Version: 0.8.0
+Version: 0.9.0
 Purpose: Provides the central embedded live candlestick chart container without trading or domain analysis logic.
 Dependencies: json, PySide6.QtCore, PySide6.QtWidgets, PySide6.QtWebEngineWidgets, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.utils.paths
 Change History:
@@ -13,6 +13,7 @@ Change History:
 - 0.5.1: Preserved GUI-only chart bridge for runtime pan, zoom, and review-state behavior.
 - 0.7.0: Added GUI-only market structure marker payload routing to chart runtime.
 - 0.8.0: Added GUI-only support/resistance zone payload routing to chart runtime.
+- 0.9.0: Added GUI-only historical BOS and liquidity payload routing to chart runtime.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ import json
 from PySide6.QtCore import Qt, QUrl
 from PySide6.QtWidgets import QFrame, QLabel, QStackedLayout, QVBoxLayout, QWidget
 
+from sentinel_ai.models.liquidity import LiquiditySnapshot
 from sentinel_ai.models.market import MarketDataSnapshot
 from sentinel_ai.models.market_structure import MarketStructureSnapshot
 from sentinel_ai.models.support_resistance import SupportResistanceSnapshot
@@ -119,7 +121,7 @@ class ChartPanel(QFrame):
 
         self._render_market_snapshot(snapshot)
 
-    def set_market_structure_snapshot(self, structure_snapshot: MarketStructureSnapshot, max_markers: int) -> None:
+    def set_market_structure_snapshot(self, structure_snapshot: MarketStructureSnapshot, max_markers: int, max_bos_markers: int) -> None:
         """Route precomputed market structure markers to the embedded chart runtime."""
         if self._chart_view is None or not self._chart_ready:
             return
@@ -135,21 +137,26 @@ class ChartPanel(QFrame):
             }
             for point in marker_points
         ]
-        latest_break = structure_snapshot.latest_break
-        break_payload = None
-        if latest_break is not None:
-            break_payload = {
-                "time": int(latest_break.broken_at.timestamp()),
-                "price": latest_break.close_price,
-                "direction": latest_break.direction,
-                "label": "BOS↑" if latest_break.is_bullish else "BOS↓",
+        break_limit = max(1, int(max_bos_markers))
+        break_events = structure_snapshot.historical_breaks[-break_limit:]
+        break_payload = [
+            {
+                "time": int(item.broken_at.timestamp()),
+                "price": item.close_price,
+                "referencePrice": item.reference_price,
+                "direction": item.direction,
+                "label": item.label,
             }
+            for item in break_events
+        ]
+        latest_break = structure_snapshot.latest_break
         metadata = {
             "symbol": structure_snapshot.symbol,
             "timeframe": structure_snapshot.timeframe,
             "bias": structure_snapshot.bias,
             "summary": structure_snapshot.summary,
-            "latestBreak": break_payload,
+            "breaks": break_payload,
+            "latestBreak": break_payload[-1] if latest_break is not None and break_payload else None,
         }
         script = (
             "window.SentinelChart && "
@@ -188,6 +195,50 @@ class ChartPanel(QFrame):
             f"window.SentinelChart.setSupportResistance({json.dumps(zones)}, {json.dumps(metadata)});"
         )
         self._chart_view.page().runJavaScript(script)
+
+    def set_liquidity_snapshot(self, liquidity_snapshot: LiquiditySnapshot, max_pools: int, max_sweeps: int) -> None:
+        """Route precomputed liquidity pools and sweeps to the embedded chart runtime."""
+        if self._chart_view is None or not self._chart_ready:
+            return
+
+        pool_limit = max(1, int(max_pools))
+        sweep_limit = max(1, int(max_sweeps))
+        pools = [
+            {
+                "side": pool.side,
+                "price": pool.price,
+                "time": int(pool.reference_time.timestamp()),
+                "swept": pool.swept,
+                "inducementCandidate": pool.inducement_candidate,
+                "distanceFromPrice": pool.distance_from_price,
+                "label": pool.label,
+            }
+            for pool in liquidity_snapshot.pools[:pool_limit]
+        ]
+        sweeps = [
+            {
+                "direction": sweep.direction,
+                "sweptSide": sweep.swept_side,
+                "referencePrice": sweep.reference_price,
+                "referenceTime": int(sweep.reference_time.timestamp()),
+                "time": int(sweep.swept_at.timestamp()),
+                "wickPrice": sweep.wick_price,
+                "closePrice": sweep.close_price,
+                "label": sweep.label,
+            }
+            for sweep in liquidity_snapshot.sweeps[-sweep_limit:]
+        ]
+        metadata = {
+            "symbol": liquidity_snapshot.symbol,
+            "timeframe": liquidity_snapshot.timeframe,
+            "summary": liquidity_snapshot.summary,
+        }
+        script = (
+            "window.SentinelChart && "
+            f"window.SentinelChart.setLiquidity({json.dumps(pools)}, {json.dumps(sweeps)}, {json.dumps(metadata)});"
+        )
+        self._chart_view.page().runJavaScript(script)
+
 
     @staticmethod
     def _zone_to_payload(zone: object) -> dict[str, object] | None:

@@ -2,7 +2,7 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-Version: 0.8.0
+Version: 0.9.0
 Purpose: Defines validated configuration models for Sentinel AI, including modular analysis-engine settings.
 Dependencies: dataclasses, typing
 Change History:
@@ -15,6 +15,7 @@ Change History:
 - 0.6.0: Added symbol-management configuration for account-specific MT5 symbol resolution.
 - 0.7.0: Added market structure engine configuration for Sprint 7 analysis foundation.
 - 0.8.0: Added support/resistance engine configuration for Sprint 8 analysis foundation.
+- 0.9.0: Added liquidity engine configuration for Sprint 9 analysis foundation.
 """
 
 from __future__ import annotations
@@ -162,6 +163,7 @@ class MarketStructureConfig:
     swing_window: int
     minimum_swing_distance_price: float
     max_chart_markers: int
+    max_bos_markers: int
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MarketStructureConfig":
@@ -170,6 +172,7 @@ class MarketStructureConfig:
         swing_window = int(data["swing_window"])
         minimum_distance = float(data["minimum_swing_distance_price"])
         max_chart_markers = int(data["max_chart_markers"])
+        max_bos_markers = int(data["max_bos_markers"])
         if lookback_candles < 20:
             raise ValueError("analysis.market_structure.lookback_candles must be at least 20.")
         if swing_window < 1:
@@ -180,12 +183,15 @@ class MarketStructureConfig:
             raise ValueError("analysis.market_structure.minimum_swing_distance_price cannot be negative.")
         if max_chart_markers < 1:
             raise ValueError("analysis.market_structure.max_chart_markers must be greater than zero.")
+        if max_bos_markers < 1:
+            raise ValueError("analysis.market_structure.max_bos_markers must be greater than zero.")
         return cls(
             enabled=bool(data["enabled"]),
             lookback_candles=lookback_candles,
             swing_window=swing_window,
             minimum_swing_distance_price=minimum_distance,
             max_chart_markers=max_chart_markers,
+            max_bos_markers=max_bos_markers,
         )
 
 
@@ -230,6 +236,45 @@ class SupportResistanceConfig:
             minimum_zone_width_price=minimum_zone_width_price,
             min_touch_count=min_touch_count,
             max_chart_zones=max_chart_zones,
+        )
+
+
+@dataclass(frozen=True)
+class LiquidityConfig:
+    """Represent liquidity engine behavior settings."""
+
+    enabled: bool
+    lookback_candles: int
+    sweep_buffer_price: float
+    max_chart_pools: int
+    max_chart_sweeps: int
+    inducement_distance_price: float
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "LiquidityConfig":
+        """Create a LiquidityConfig from a dictionary."""
+        lookback_candles = int(data["lookback_candles"])
+        sweep_buffer_price = float(data["sweep_buffer_price"])
+        max_chart_pools = int(data["max_chart_pools"])
+        max_chart_sweeps = int(data["max_chart_sweeps"])
+        inducement_distance_price = float(data["inducement_distance_price"])
+        if lookback_candles < 20:
+            raise ValueError("analysis.liquidity.lookback_candles must be at least 20.")
+        if sweep_buffer_price < 0:
+            raise ValueError("analysis.liquidity.sweep_buffer_price cannot be negative.")
+        if max_chart_pools < 1:
+            raise ValueError("analysis.liquidity.max_chart_pools must be greater than zero.")
+        if max_chart_sweeps < 1:
+            raise ValueError("analysis.liquidity.max_chart_sweeps must be greater than zero.")
+        if inducement_distance_price < 0:
+            raise ValueError("analysis.liquidity.inducement_distance_price cannot be negative.")
+        return cls(
+            enabled=bool(data["enabled"]),
+            lookback_candles=lookback_candles,
+            sweep_buffer_price=sweep_buffer_price,
+            max_chart_pools=max_chart_pools,
+            max_chart_sweeps=max_chart_sweeps,
+            inducement_distance_price=inducement_distance_price,
         )
 
 
@@ -289,6 +334,7 @@ class SentinelConfig:
     market_data: MarketDataConfig
     market_structure: MarketStructureConfig
     support_resistance: SupportResistanceConfig
+    liquidity: LiquidityConfig
     database: DatabaseConfig
     logging: LoggingConfig
     ui: UiConfig
@@ -304,6 +350,7 @@ class SentinelConfig:
             market_data=MarketDataConfig.from_dict(data["market_data"]),
             market_structure=MarketStructureConfig.from_dict(data["analysis"]["market_structure"]),
             support_resistance=SupportResistanceConfig.from_dict(data["analysis"]["support_resistance"]),
+            liquidity=LiquidityConfig.from_dict(data["analysis"]["liquidity"]),
             database=DatabaseConfig.from_dict(data["database"]),
             logging=LoggingConfig.from_dict(data["logging"]),
             ui=UiConfig.from_dict(data["ui"]),

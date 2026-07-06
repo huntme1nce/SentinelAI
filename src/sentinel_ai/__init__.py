@@ -2,7 +2,7 @@
 MODULE: CORE-000
 FILE: CORE-000-001
 Module Name: Sentinel AI Package
-Version: 0.8.0
+Version: 0.9.0
 Purpose: Exposes package-level application metadata.
 Dependencies: None
 Change History:
@@ -15,7 +15,8 @@ Change History:
 - 0.6.0: Updated package metadata for symbol management foundation.
 - 0.7.0: Updated package metadata for market structure engine foundation.
 - 0.8.0: Updated package metadata for support/resistance engine foundation.
+- 0.9.0: Updated package metadata for BOS visibility and liquidity engine foundation.
 """
 
 __app_name__ = "Sentinel AI"
-__version__ = "0.8.0"
+__version__ = "0.9.0"

@@ -2,9 +2,9 @@
 MODULE: SVC-001
 FILE: SVC-001-001
 Module Name: Service Contracts
-Version: 0.8.0
+Version: 0.9.0
 Purpose: Defines replaceable service interfaces for analysis, market data, symbol management, prediction, trading, learning, and notifications.
-Dependencies: abc, pandas, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.models.prediction
+Dependencies: abc, pandas, sentinel_ai.models.liquidity, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.models.prediction
 Change History:
 - 0.1.0: Added runtime service contracts for modular expansion.
 - 0.2.0: Added market data service contract for MT5 connection foundation.
@@ -14,6 +14,7 @@ Change History:
 - 0.6.0: Added symbol catalog and search methods to the market data service contract.
 - 0.7.0: Added market structure engine contract for replaceable analysis modules.
 - 0.8.0: Added support/resistance engine contract for replaceable analysis modules.
+- 0.9.0: Added liquidity engine contract for replaceable analysis modules.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
+from sentinel_ai.models.liquidity import LiquiditySnapshot
 from sentinel_ai.models.market import (
     MarketDataSnapshot,
     Mt5AccountSnapshot,
@@ -137,6 +139,19 @@ class SupportResistanceEngineContract(ABC):
     ) -> SupportResistanceSnapshot:
         """Analyze validated market and structure snapshots and return support/resistance context."""
         raise NotImplementedError("SupportResistanceEngineContract.analyze must be implemented by an analysis engine.")
+
+
+class LiquidityEngineContract(ABC):
+    """Define the contract for replaceable liquidity analysis engines."""
+
+    @abstractmethod
+    def analyze(
+        self,
+        market_snapshot: MarketDataSnapshot,
+        structure_snapshot: MarketStructureSnapshot,
+    ) -> LiquiditySnapshot:
+        """Analyze liquidity pools and sweeps without generating trade predictions."""
+        raise NotImplementedError("LiquidityEngineContract.analyze must be implemented by a liquidity engine.")
 
 
 class AnalysisPipelineContract(ABC):

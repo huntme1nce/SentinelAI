@@ -2,8 +2,8 @@
 MODULE: OPS-001
 FILE: OPS-001-001
 Module Name: Sprint Validator
-Version: 0.8.0
-Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, one-second refresh, symbol management, market structure analysis, and support/resistance analysis.
+Version: 0.9.0
+Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, one-second refresh, symbol management, market structure, support/resistance, BOS visibility, and liquidity analysis.
 Dependencies: compileall, datetime, json, logging, pathlib, sys, pandas
 Change History:
 - 0.1.0: Added compile and resource validation for stable milestone handoff.
@@ -15,6 +15,7 @@ Change History:
 - 0.6.0: Added validation for symbol catalog models, contract methods, resolution service, and config persistence.
 - 0.7.0: Added validation for market structure models, engine output, and chart marker runtime.
 - 0.8.0: Added validation for support/resistance models, engine output, and chart zone runtime.
+- 0.9.0: Added validation for persistent BOS markers and liquidity engine output.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ import pandas as pd
 
 
 def main() -> int:
-    """Compile project source and verify required Sprint 8 support/resistance foundation components."""
+    """Compile project source and verify required Sprint 9 BOS visibility and liquidity foundation components."""
     project_root = Path(__file__).resolve().parents[1]
     source_root = project_root / "src"
     required_files = [
@@ -48,8 +49,10 @@ def main() -> int:
         source_root / "sentinel_ai" / "models" / "symbol.py",
         source_root / "sentinel_ai" / "models" / "market_structure.py",
         source_root / "sentinel_ai" / "models" / "support_resistance.py",
+        source_root / "sentinel_ai" / "models" / "liquidity.py",
         source_root / "sentinel_ai" / "analysis" / "market_structure_engine.py",
         source_root / "sentinel_ai" / "analysis" / "support_resistance_engine.py",
+        source_root / "sentinel_ai" / "analysis" / "liquidity_engine.py",
         project_root / "SentinelAI.spec",
         project_root / "requirements.txt",
     ]
@@ -67,7 +70,7 @@ def main() -> int:
     if "sentinel_chart_runtime.js" not in html_resource or "window.SentinelChart" not in runtime_resource:
         print("Embedded chart resources failed validation.", file=sys.stderr)
         return 1
-    required_runtime_markers = ["mousedown", "wheel", "dblclick", "offsetFromRight", "resetViewToLatest", "setMarketStructure", "drawStructureMarkers", "setSupportResistance", "drawSupportResistanceZones"]
+    required_runtime_markers = ["mousedown", "wheel", "dblclick", "offsetFromRight", "resetViewToLatest", "setMarketStructure", "drawStructureMarkers", "setSupportResistance", "drawSupportResistanceZones", "setLiquidity", "drawLiquidityOverlays", "drawStructureBreakMarkers"]
     if any(marker not in runtime_resource for marker in required_runtime_markers):
         print("Chart navigation runtime validation failed.", file=sys.stderr)
         return 1
@@ -78,6 +81,7 @@ def main() -> int:
         return 1
 
     sys.path.insert(0, str(source_root))
+    from sentinel_ai.analysis.liquidity_engine import LiquidityEngine
     from sentinel_ai.analysis.market_structure_engine import MarketStructureEngine
     from sentinel_ai.analysis.support_resistance_engine import SupportResistanceEngine
     from sentinel_ai.config.config_service import ConfigService
@@ -232,7 +236,7 @@ def main() -> int:
         print("Symbol activation validation failed.", file=sys.stderr)
         return 1
 
-    if not config.market_structure.enabled or config.market_structure.swing_window != 2:
+    if not config.market_structure.enabled or config.market_structure.swing_window != 2 or config.market_structure.max_bos_markers < 1:
         print("Market structure configuration validation failed.", file=sys.stderr)
         return 1
 
@@ -248,6 +252,9 @@ def main() -> int:
         return 1
     if structure_snapshot.summary.strip() == "":
         print("Market structure summary validation failed.", file=sys.stderr)
+        return 1
+    if not hasattr(structure_snapshot, "historical_breaks"):
+        print("Market structure historical BOS storage validation failed.", file=sys.stderr)
         return 1
 
     analysis_snapshot = feed_service.load_snapshot("XAUUSDm", "M5", 80)
@@ -272,6 +279,20 @@ def main() -> int:
         print("Support/resistance zone detection validation failed.", file=sys.stderr)
         return 1
 
+    liquidity_snapshot = LiquidityEngine(
+        config=config.liquidity,
+        logger=logging.getLogger("sentinel_ai.validation.liquidity"),
+    ).analyze(analysis_snapshot, analysis_structure_snapshot)
+    if not config.liquidity.enabled or config.liquidity.max_chart_pools < 1 or config.liquidity.max_chart_sweeps < 1:
+        print("Liquidity configuration validation failed.", file=sys.stderr)
+        return 1
+    if liquidity_snapshot.summary.strip() == "":
+        print("Liquidity summary validation failed.", file=sys.stderr)
+        return 1
+    if not liquidity_snapshot.pools:
+        print("Liquidity pool detection validation failed.", file=sys.stderr)
+        return 1
+
     try:
         json.dumps(chart_payload)
     except TypeError as error:
@@ -289,7 +310,7 @@ def main() -> int:
         "Sprint validation passed: source compiled, resources verified, config loaded, "
         "MT5 mapping available, market feed conversion validated, chart assets ready, "
         "one-second live refresh configured, chart navigation ready, symbol management ready, "
-        "market structure engine ready, support/resistance engine ready."
+        "market structure engine ready, support/resistance engine ready, liquidity engine ready."
     )
     return 0
 

@@ -2,7 +2,7 @@
 MODULE: SVC-002
 FILE: SVC-002-001
 Module Name: Application Context
-Version: 0.8.0
+Version: 0.9.0
 Purpose: Composes Sentinel AI services without coupling GUI to trading, symbol management, analysis, or persistence internals.
 Dependencies: logging, sentinel_ai.analysis, sentinel_ai.config, sentinel_ai.database, sentinel_ai.logging_service, sentinel_ai.market_data, sentinel_ai.mt5, sentinel_ai.symbols
 Change History:
@@ -14,6 +14,7 @@ Change History:
 - 0.6.0: Added symbol management service composition and config service exposure.
 - 0.7.0: Added market structure engine composition.
 - 0.8.0: Added support/resistance engine composition.
+- 0.9.0: Added liquidity engine composition.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from sentinel_ai.analysis.liquidity_engine import LiquidityEngine
 from sentinel_ai.analysis.market_structure_engine import MarketStructureEngine
 from sentinel_ai.analysis.support_resistance_engine import SupportResistanceEngine
 from sentinel_ai.config.config_schema import SentinelConfig
@@ -51,6 +53,7 @@ class ApplicationContext:
     market_refresh_service: MarketRefreshService
     market_structure_engine: MarketStructureEngine
     support_resistance_engine: SupportResistanceEngine
+    liquidity_engine: LiquidityEngine
 
 
 class ApplicationContextFactory:
@@ -88,6 +91,10 @@ class ApplicationContextFactory:
             config=config.support_resistance,
             logger=logger,
         )
+        liquidity_engine = LiquidityEngine(
+            config=config.liquidity,
+            logger=logger,
+        )
         logger.info("Application context initialized.")
         return ApplicationContext(
             config=config,
@@ -101,4 +108,5 @@ class ApplicationContextFactory:
             market_refresh_service=market_refresh_service,
             market_structure_engine=market_structure_engine,
             support_resistance_engine=support_resistance_engine,
+            liquidity_engine=liquidity_engine,
         )

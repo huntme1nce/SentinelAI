@@ -2,7 +2,7 @@
 MODULE: CFG-001
 FILE: CFG-001-002
 Module Name: Configuration Service
-Version: 0.8.0
+Version: 0.9.0
 Purpose: Loads, persists, and validates JSON configuration for Sentinel AI, including analysis settings.
 Dependencies: copy, json, pathlib, shutil, sentinel_ai.config.config_schema, sentinel_ai.core.constants, sentinel_ai.utils.paths
 Change History:
@@ -14,6 +14,7 @@ Change History:
 - 0.6.0: Added active trading-symbol persistence for symbol management.
 - 0.7.0: Preserved merge migration for market structure engine settings.
 - 0.8.0: Preserved merge migration for support/resistance engine settings.
+- 0.9.0: Preserved merge migration for liquidity engine and BOS marker settings.
 """
 
 from __future__ import annotations
