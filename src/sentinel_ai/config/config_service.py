@@ -2,13 +2,14 @@
 MODULE: CFG-001
 FILE: CFG-001-002
 Module Name: Configuration Service
-Version: 0.3.0
+Version: 0.4.0
 Purpose: Loads, persists, and validates JSON configuration for Sentinel AI.
 Dependencies: json, pathlib, shutil, sentinel_ai.config.config_schema, sentinel_ai.core.constants, sentinel_ai.utils.paths
 Change History:
 - 0.1.0: Added production configuration loading from packaged defaults into writable user config.
 - 0.2.0: Added backward-compatible configuration merge so Sprint 1 user configs receive Sprint 2 MT5 keys safely.
 - 0.3.0: Preserved backward-compatible configuration merge for Sprint 3 market_data keys.
+- 0.4.0: Preserved configuration merge behavior for Sprint 4 chart resources.
 """
 
 from __future__ import annotations

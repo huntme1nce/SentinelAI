@@ -2,13 +2,14 @@
 MODULE: APP-001
 FILE: APP-001-001
 Module Name: Qt Application Bootstrapper
-Version: 0.3.0
-Purpose: Starts Sentinel AI with configured services, theme, welcome gate, MT5 status, market feed, and main window.
+Version: 0.4.0
+Purpose: Starts Sentinel AI with configured services, theme, welcome gate, MT5 status, market feed, chart rendering, and main window.
 Dependencies: sys, PySide6.QtWidgets, sentinel_ai.gui, sentinel_ai.market_data, sentinel_ai.services
 Change History:
 - 0.1.0: Added production startup flow with mandatory manual welcome window.
 - 0.2.0: Added MT5 connection initialization and safe market status reporting without trading execution.
 - 0.3.0: Added validated market data feed loading without prediction or trade execution logic.
+- 0.4.0: Preserved startup flow while chart panel renders live validated candles.
 """
 
 from __future__ import annotations

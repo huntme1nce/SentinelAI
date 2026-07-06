@@ -2,13 +2,14 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-Version: 0.3.0
+Version: 0.4.0
 Purpose: Defines validated configuration models for Sentinel AI.
 Dependencies: dataclasses, typing
 Change History:
 - 0.1.0: Added application, trading, database, logging, and UI configuration models.
 - 0.2.0: Added MT5 connection configuration for Sprint 2.
 - 0.3.0: Added market data feed configuration for Sprint 3.
+- 0.4.0: Preserved schema for Sprint 4 chart rendering without adding trading settings.
 """
 
 from __future__ import annotations

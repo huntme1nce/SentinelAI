@@ -2,13 +2,14 @@
 MODULE: SVC-002
 FILE: SVC-002-001
 Module Name: Application Context
-Version: 0.3.0
+Version: 0.4.0
 Purpose: Composes Sentinel AI services without coupling GUI to trading or persistence internals.
 Dependencies: logging, sentinel_ai.config, sentinel_ai.database, sentinel_ai.logging_service, sentinel_ai.market_data, sentinel_ai.mt5
 Change History:
 - 0.1.0: Added root dependency composition for Sprint 1 foundation.
 - 0.2.0: Added MT5 market data service composition.
 - 0.3.0: Added validated market data feed service composition.
+- 0.4.0: Preserved service composition while GUI chart rendering remains isolated.
 """
 
 from __future__ import annotations

@@ -2,13 +2,14 @@
 MODULE: SVC-001
 FILE: SVC-001-001
 Module Name: Service Contracts
-Version: 0.3.0
+Version: 0.4.0
 Purpose: Defines replaceable service interfaces for analysis, market data, prediction, trading, learning, and notifications.
 Dependencies: abc, pandas, sentinel_ai.models.market, sentinel_ai.models.prediction
 Change History:
 - 0.1.0: Added runtime service contracts for modular expansion.
 - 0.2.0: Added market data service contract for MT5 connection foundation.
 - 0.3.0: Added candle feed contract for validated market data snapshots.
+- 0.4.0: Preserved service contracts for chart rendering sprint without adding trading execution.
 """
 
 from __future__ import annotations

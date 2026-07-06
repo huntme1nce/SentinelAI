@@ -2,12 +2,13 @@
 MODULE: MODEL-002
 FILE: MODEL-002-001
 Module Name: Market Data Models
-Version: 0.3.0
+Version: 0.4.0
 Purpose: Defines immutable market connectivity, symbol, account, OHLC, and chart-feed data models.
 Dependencies: dataclasses, datetime
 Change History:
 - 0.2.0: Added MT5 foundation models for connection status, account snapshots, symbol validation, and market bars.
 - 0.3.0: Added market data snapshot and Lightweight Charts candle models for Sprint 3 feed foundation.
+- 0.4.0: Preserved immutable candle models for Sprint 4 chart rendering.
 """
 
 from __future__ import annotations

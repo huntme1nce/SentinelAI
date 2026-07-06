@@ -2,11 +2,12 @@
 MODULE: MKT-002
 FILE: MKT-002-001
 Module Name: Lightweight Chart Feed Adapter
-Version: 0.3.0
+Version: 0.4.0
 Purpose: Converts validated internal candles into TradingView Lightweight Charts-compatible payloads.
 Dependencies: datetime, sentinel_ai.models.market
 Change History:
 - 0.3.0: Added chart feed conversion layer for future embedded TradingView integration.
+- 0.4.0: Confirmed JSON payload shape for embedded live chart rendering.
 """
 
 from __future__ import annotations

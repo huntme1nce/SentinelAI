@@ -2,12 +2,13 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-Version: 0.3.0
-Purpose: Provides the Sentinel AI main shell layout without embedding trading logic.
+Version: 0.4.0
+Purpose: Provides the Sentinel AI main shell layout without embedding trading or analysis logic.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models.market
 Change History:
 - 0.1.0: Added approved main GUI layout with toolbar, chart, prediction panel, statistics panel, and status bar.
 - 0.3.0: Added GUI-only market feed status update method for validated snapshots.
+- 0.4.0: Routed validated snapshots to the embedded chart panel without changing layout.
 """
 
 from __future__ import annotations

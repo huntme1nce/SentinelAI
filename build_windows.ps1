@@ -1,12 +1,13 @@
 # MODULE: OPS-003
 # FILE: OPS-003-001
 # Module Name: Windows Build Script
-# Version: 0.3.0
+# Version: 0.4.0
 # Purpose: Validates and builds Sentinel AI as a PyInstaller Windows standalone package.
 # Dependencies: PowerShell, Python, PyInstaller
 # Change History:
 # - 0.1.0: Added local virtual environment build flow.
 # - 0.3.0: Preserved validation-first build flow for Sprint 3 market data feed foundation.
+# - 0.4.0: Preserved validation-first build flow for chart rendering resources.
 
 $ErrorActionPreference = "Stop"
 

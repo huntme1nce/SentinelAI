@@ -2,18 +2,20 @@
 MODULE: OPS-001
 FILE: OPS-001-001
 Module Name: Sprint Validator
-Version: 0.3.0
-Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, and market feed conversion.
-Dependencies: compileall, datetime, pathlib, sys, pandas
+Version: 0.4.0
+Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, and chart assets.
+Dependencies: compileall, datetime, json, logging, pathlib, sys, pandas
 Change History:
 - 0.1.0: Added compile and resource validation for stable milestone handoff.
 - 0.2.0: Added Sprint 2 configuration and MT5 timeframe mapper validation.
 - 0.3.0: Added Sprint 3 market data feed validation using a deterministic gateway.
+- 0.4.0: Added Sprint 4 embedded chart resource and payload serialization validation.
 """
 
 from __future__ import annotations
 
 import compileall
+import json
 import logging
 import sys
 from datetime import datetime, timezone
@@ -23,12 +25,14 @@ import pandas as pd
 
 
 def main() -> int:
-    """Compile project source and verify required Sprint 3 foundation components."""
+    """Compile project source and verify required Sprint 4 chart rendering components."""
     project_root = Path(__file__).resolve().parents[1]
     source_root = project_root / "src"
     required_files = [
         source_root / "sentinel_ai" / "resources" / "config" / "default_config.json",
         source_root / "sentinel_ai" / "resources" / "theme" / "dark_neon.json",
+        source_root / "sentinel_ai" / "resources" / "chart" / "chart_view.html",
+        source_root / "sentinel_ai" / "resources" / "chart" / "sentinel_chart_runtime.js",
         source_root / "sentinel_ai" / "mt5" / "mt5_service.py",
         source_root / "sentinel_ai" / "mt5" / "timeframe_mapper.py",
         source_root / "sentinel_ai" / "market_data" / "candle_validator.py",
@@ -42,6 +46,14 @@ def main() -> int:
     if missing_files:
         for path in missing_files:
             print(f"Missing required file: {path}", file=sys.stderr)
+        return 1
+
+    html_resource = (source_root / "sentinel_ai" / "resources" / "chart" / "chart_view.html").read_text(encoding="utf-8")
+    runtime_resource = (source_root / "sentinel_ai" / "resources" / "chart" / "sentinel_chart_runtime.js").read_text(
+        encoding="utf-8"
+    )
+    if "sentinel_chart_runtime.js" not in html_resource or "window.SentinelChart" not in runtime_resource:
+        print("Embedded chart resources failed validation.", file=sys.stderr)
         return 1
 
     compiled = compileall.compile_dir(str(source_root), quiet=1)
@@ -117,8 +129,15 @@ def main() -> int:
         logger=logging.getLogger("sentinel_ai.validation"),
     )
     snapshot = feed_service.load_snapshot("GOLDm#", "M5", 3)
-    if snapshot.candle_count != 3 or len(feed_service.chart_payload()) != 3:
+    chart_payload = feed_service.chart_payload()
+    if snapshot.candle_count != 3 or len(chart_payload) != 3:
         print("Market data feed validation failed.", file=sys.stderr)
+        return 1
+
+    try:
+        json.dumps(chart_payload)
+    except TypeError as error:
+        print(f"Chart payload serialization failed: {error}", file=sys.stderr)
         return 1
 
     validation_config = project_root / ".validation_config.json"
@@ -127,7 +146,7 @@ def main() -> int:
 
     print(
         "Sprint validation passed: source compiled, resources verified, config loaded, "
-        "MT5 mapping available, market feed conversion validated."
+        "MT5 mapping available, market feed conversion validated, chart assets ready."
     )
     return 0
 

@@ -2,24 +2,25 @@
 MODULE: DOC-001
 FILE: DOC-001-001
 Module Name: Project README
-Version: 0.3.0
-Purpose: Documents Sentinel AI setup, sprint scope, validation, and build instructions.
+Version: 0.4.0
+Purpose: Documents Sentinel AI setup, sprint scope, validation, chart rendering, and build instructions.
 Dependencies: Markdown
 Change History:
 - 0.1.0: Added Sprint 1 documentation.
 - 0.2.0: Added Sprint 2 MT5 connection notes.
 - 0.3.0: Added Sprint 3 market data feed notes and NumPy compatibility guidance.
+- 0.4.0: Added Sprint 4 live chart rendering notes.
 -->
 
 # Sentinel AI
 
-Sentinel AI is a professional Windows desktop trading workstation foundation built with PySide6, SQLite, JSON configuration, MT5 market-data integration, validated market feed services, and service-based architecture.
+Sentinel AI is a professional Windows desktop trading workstation foundation built with PySide6, SQLite, JSON configuration, MT5 market-data integration, validated market feed services, embedded chart rendering, and service-based architecture.
 
 ## Current Sprint
 
-Version: 0.3.0
+Version: 0.4.0
 
-Sprint 3 adds the Market Data Feed Foundation while preserving the Sprint 1 GUI layout and Sprint 2 MT5 connection architecture.
+Sprint 4 adds Live Chart Rendering while preserving the Sprint 1 GUI layout, Sprint 2 MT5 connection architecture, and Sprint 3 market data feed layer.
 
 ## Completed Sprint Scope
 
@@ -58,7 +59,19 @@ Sprint 3 adds the Market Data Feed Foundation while preserving the Sprint 1 GUI 
 - Improved MT5 import diagnostics
 - NumPy pinned to `1.26.4` for MetaTrader5 binary compatibility
 
-Trade execution, prediction generation, and learning adjustments are intentionally outside Sprint 3 scope.
+### Sprint 4: Live Chart Rendering
+
+- Embedded chart web view inside the existing chart panel
+- Local packaged chart resources under `src/sentinel_ai/resources/chart`
+- Live candlestick rendering from validated Sprint 3 OHLCV snapshots
+- Timeframe-change chart refresh using the selected timeframe
+- Crosshair and latest-price display inside the chart runtime
+- PyInstaller hidden imports for Qt WebEngine chart rendering
+- No prediction logic
+- No trade execution logic
+- No GUI layout redesign
+
+Trade execution, prediction generation, and learning adjustments are intentionally outside Sprint 4 scope.
 
 ## Run Locally
 
@@ -81,7 +94,7 @@ python scripts/validate_sprint.py
 Expected result:
 
 ```text
-Sprint validation passed: source compiled, resources verified, config loaded, MT5 mapping available, market feed conversion validated.
+Sprint validation passed: source compiled, resources verified, config loaded, MT5 mapping available, market feed conversion validated, chart assets ready.
 ```
 
 ## Build EXE
@@ -97,5 +110,11 @@ The build output is created under `dist\SentinelAI`.
 - Install and log in to your broker's MT5 terminal before starting Sentinel AI.
 - The configured default symbol is `GOLDm#`.
 - If your broker uses a different symbol name, update the writable config file under `%LOCALAPPDATA%\SentinelAI\config\config.json`.
-- Sprint 3 is read-only for market data and does not place trades.
+- Sprint 4 is read-only for market data and does not place trades.
 - Keep `numpy==1.26.4` unless MT5 package compatibility is verified against a newer version.
+
+## Chart Notes
+
+- The chart panel renders only validated market-feed candles.
+- The GUI does not calculate entries, confidence, trend, support, resistance, or trade signals.
+- Chart rendering is isolated from MT5, trading, database, prediction, and learning services.
