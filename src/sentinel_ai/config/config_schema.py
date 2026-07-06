@@ -2,8 +2,8 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-Version: 0.6.0
-Purpose: Defines validated configuration models for Sentinel AI.
+Version: 0.7.0
+Purpose: Defines validated configuration models for Sentinel AI, including analysis-engine settings.
 Dependencies: dataclasses, typing
 Change History:
 - 0.1.0: Added application, trading, database, logging, and UI configuration models.
@@ -13,6 +13,7 @@ Change History:
 - 0.5.0: Added market-data live refresh configuration with timeframe-specific intervals.
 - 0.5.1: Preserved validated refresh configuration while allowing one-second synchronization defaults.
 - 0.6.0: Added symbol-management configuration for account-specific MT5 symbol resolution.
+- 0.7.0: Added market structure engine configuration for Sprint 7 analysis foundation.
 """
 
 from __future__ import annotations
@@ -152,6 +153,42 @@ class MarketDataConfig:
 
 
 @dataclass(frozen=True)
+class MarketStructureConfig:
+    """Represent market structure engine behavior settings."""
+
+    enabled: bool
+    lookback_candles: int
+    swing_window: int
+    minimum_swing_distance_price: float
+    max_chart_markers: int
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "MarketStructureConfig":
+        """Create a MarketStructureConfig from a dictionary."""
+        lookback_candles = int(data["lookback_candles"])
+        swing_window = int(data["swing_window"])
+        minimum_distance = float(data["minimum_swing_distance_price"])
+        max_chart_markers = int(data["max_chart_markers"])
+        if lookback_candles < 20:
+            raise ValueError("analysis.market_structure.lookback_candles must be at least 20.")
+        if swing_window < 1:
+            raise ValueError("analysis.market_structure.swing_window must be at least 1.")
+        if lookback_candles <= swing_window * 2:
+            raise ValueError("analysis.market_structure.lookback_candles must exceed twice the swing window.")
+        if minimum_distance < 0:
+            raise ValueError("analysis.market_structure.minimum_swing_distance_price cannot be negative.")
+        if max_chart_markers < 1:
+            raise ValueError("analysis.market_structure.max_chart_markers must be greater than zero.")
+        return cls(
+            enabled=bool(data["enabled"]),
+            lookback_candles=lookback_candles,
+            swing_window=swing_window,
+            minimum_swing_distance_price=minimum_distance,
+            max_chart_markers=max_chart_markers,
+        )
+
+
+@dataclass(frozen=True)
 class DatabaseConfig:
     """Represent database file settings."""
 
@@ -205,6 +242,7 @@ class SentinelConfig:
     mt5: Mt5Config
     symbol_management: SymbolManagementConfig
     market_data: MarketDataConfig
+    market_structure: MarketStructureConfig
     database: DatabaseConfig
     logging: LoggingConfig
     ui: UiConfig
@@ -218,6 +256,7 @@ class SentinelConfig:
             mt5=Mt5Config.from_dict(data["mt5"]),
             symbol_management=SymbolManagementConfig.from_dict(data["symbol_management"]),
             market_data=MarketDataConfig.from_dict(data["market_data"]),
+            market_structure=MarketStructureConfig.from_dict(data["analysis"]["market_structure"]),
             database=DatabaseConfig.from_dict(data["database"]),
             logging=LoggingConfig.from_dict(data["logging"]),
             ui=UiConfig.from_dict(data["ui"]),

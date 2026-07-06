@@ -2,12 +2,13 @@
 MODULE: CHART-002
 FILE: CHART-002-001
 Module Name: Sentinel Chart Runtime
-Version: 0.5.1
-Purpose: Renders validated candlestick data with controlled live updates, chart panning, zooming, and review-state preservation.
+Version: 0.7.0
+Purpose: Renders validated candlestick data with controlled live updates, chart panning, zooming, review-state preservation, and market structure markers.
 Dependencies: Browser Canvas API
 Change History:
 - 0.4.0: Added offline-safe candlestick renderer for the Sprint 4 embedded chart panel.
 - 0.5.1: Added drag-to-pan, mouse-wheel zoom, double-click reset, and chart-position preservation during live refresh.
+- 0.7.0: Added market structure marker and break-of-structure overlay rendering.
 */
 
 (function () {
@@ -32,6 +33,14 @@ Change History:
       latestTime: "-",
     },
     crosshair: null,
+    structure: {
+      markers: [],
+      metadata: {
+        bias: "-",
+        summary: "",
+        latestBreak: null,
+      },
+    },
     view: {
       offsetFromRight: 0,
       zoomScale: 1,
@@ -84,6 +93,21 @@ Change History:
     renderChart();
   }
 
+
+  function setMarketStructure(markers, metadata) {
+    const normalizedMarkers = Array.isArray(markers) ? markers : [];
+    state.structure.markers = normalizedMarkers.filter(isValidStructureMarker);
+    state.structure.metadata = Object.assign({}, state.structure.metadata, metadata || {});
+    renderChart();
+  }
+
+  function isValidStructureMarker(marker) {
+    return marker &&
+      Number.isFinite(Number(marker.time)) &&
+      Number.isFinite(Number(marker.price)) &&
+      (marker.kind === "HIGH" || marker.kind === "LOW");
+  }
+
   function isValidCandle(candle) {
     return candle &&
       Number.isFinite(Number(candle.time)) &&
@@ -113,6 +137,7 @@ Change History:
 
     drawGrid(layout, priceRange);
     drawCandles(layout, visibleCandles, priceRange);
+    drawStructureMarkers(layout, visibleRange, priceRange);
     drawAxes(layout, visibleRange);
     drawLatestPriceLine(layout, visibleCandles, priceRange);
     drawCrosshair(layout, visibleRange, priceRange);
@@ -280,6 +305,62 @@ Change History:
     });
   }
 
+
+  function drawStructureMarkers(layout, visibleRange, priceRange) {
+    if (!state.structure.markers || state.structure.markers.length === 0) {
+      return;
+    }
+
+    const visibleTimeToIndex = new Map();
+    visibleRange.candles.forEach((candle, index) => {
+      visibleTimeToIndex.set(Number(candle.time), index);
+    });
+
+    context.save();
+    context.font = "bold 10px Segoe UI, Arial";
+    context.textAlign = "center";
+    state.structure.markers.forEach((marker) => {
+      const visibleIndex = visibleTimeToIndex.get(Number(marker.time));
+      if (visibleIndex === undefined) {
+        return;
+      }
+      const x = xForIndex(layout, visibleIndex, visibleRange.candles.length);
+      const y = yForPrice(layout, priceRange, Number(marker.price));
+      const isHigh = marker.kind === "HIGH";
+      const markerY = isHigh ? y - 13 : y + 13;
+      const labelY = isHigh ? y - 20 : y + 29;
+      const fillColor = isHigh ? "#ffce5c" : "#5ed7ff";
+      context.fillStyle = fillColor;
+      context.beginPath();
+      if (isHigh) {
+        context.moveTo(x, markerY);
+        context.lineTo(x - 5, markerY - 8);
+        context.lineTo(x + 5, markerY - 8);
+      } else {
+        context.moveTo(x, markerY);
+        context.lineTo(x - 5, markerY + 8);
+        context.lineTo(x + 5, markerY + 8);
+      }
+      context.closePath();
+      context.fill();
+      context.fillText(String(marker.label || (isHigh ? "SH" : "SL")), x, labelY);
+    });
+
+    const latestBreak = state.structure.metadata.latestBreak;
+    if (latestBreak && Number.isFinite(Number(latestBreak.time)) && Number.isFinite(Number(latestBreak.price))) {
+      const breakIndex = visibleTimeToIndex.get(Number(latestBreak.time));
+      if (breakIndex !== undefined) {
+        const x = xForIndex(layout, breakIndex, visibleRange.candles.length);
+        const y = yForPrice(layout, priceRange, Number(latestBreak.price));
+        context.fillStyle = latestBreak.direction === "BULLISH" ? "#20c997" : "#f0526b";
+        context.fillRect(x - 21, y - 11, 42, 18);
+        context.fillStyle = "#031014";
+        context.fillText(String(latestBreak.label || "BOS"), x, y + 2);
+      }
+    }
+    context.restore();
+  }
+
   function drawAxes(layout, visibleRange) {
     const candles = visibleRange.candles;
     context.save();
@@ -391,7 +472,8 @@ Change History:
     const mode = state.view.manualNavigation ? "Reviewing history | Double-click returns latest" : "Live view";
     const zoom = `Zoom ${state.view.zoomScale.toFixed(2)}x`;
     const visibleText = `${visibleCandles.length}/${state.candles.length} visible`;
-    setStatus(`${symbol} ${timeframe} | ${visibleText} | Latest: ${latestClose} | ${latestTime} | ${mode} | ${zoom}`);
+    const bias = state.structure.metadata.bias && state.structure.metadata.bias !== "-" ? ` | Structure: ${state.structure.metadata.bias}` : "";
+    setStatus(`${symbol} ${timeframe} | ${visibleText} | Latest: ${latestClose} | ${latestTime}${bias} | ${mode} | ${zoom}`);
   }
 
   function formatPrice(price) {
@@ -518,6 +600,7 @@ Change History:
 
   window.SentinelChart = {
     setCandles: setCandles,
+    setMarketStructure: setMarketStructure,
     setStatus: setStatus,
     render: renderChart,
     resetViewToLatest: function () {

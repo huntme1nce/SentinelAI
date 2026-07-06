@@ -2,9 +2,9 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-Version: 0.6.0
-Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, or analysis logic.
-Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models.market
+Version: 0.7.0
+Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, market-structure, or analysis logic.
+Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models.market, sentinel_ai.models.market_structure
 Change History:
 - 0.1.0: Added approved main GUI layout with toolbar, chart, prediction panel, statistics panel, and status bar.
 - 0.3.0: Added GUI-only market feed status update method for validated snapshots.
@@ -12,6 +12,7 @@ Change History:
 - 0.5.0: Added GUI-only methods for live market snapshot and runtime status updates.
 - 0.5.1: Preserved layout while live refresh cadence and chart navigation behavior were patched.
 - 0.6.0: Added GUI-only symbol selection controls and symbol status methods.
+- 0.7.0: Added GUI-only market structure status rendering and chart marker routing.
 """
 
 from __future__ import annotations
@@ -35,6 +36,7 @@ from sentinel_ai.gui.widgets.chart_panel import ChartPanel
 from sentinel_ai.gui.widgets.prediction_panel import PredictionPanel
 from sentinel_ai.gui.widgets.statistics_panel import StatisticsPanel
 from sentinel_ai.models.market import MarketDataSnapshot
+from sentinel_ai.models.market_structure import MarketStructureSnapshot
 
 
 class MainWindow(QMainWindow):
@@ -218,6 +220,21 @@ class MainWindow(QMainWindow):
                 f"Live update: {snapshot.symbol} {snapshot.timeframe} close {latest.close:.2f}."
             )
         self._chart_panel.set_market_snapshot(snapshot)
+
+    def update_market_structure_status(self, structure_snapshot: MarketStructureSnapshot) -> None:
+        """Display market structure context supplied by analysis services without computing it in the GUI."""
+        self._trend_label.setText(f"Trend: {structure_snapshot.bias}")
+        self._probability_label.setText("Probability: 0.00%")
+        self._prediction_panel.update_prediction(
+            direction="WAIT",
+            confidence="Pending",
+            timeframe=structure_snapshot.timeframe,
+            reason=structure_snapshot.summary,
+            take_profit="-",
+            stop_loss="-",
+            risk_reward="-",
+        )
+        self._chart_panel.set_market_structure_snapshot(structure_snapshot, self._config.market_structure.max_chart_markers)
 
     def set_trading_controls_enabled(self, enabled: bool) -> None:
         """Enable or disable trading controls based on trading service availability."""

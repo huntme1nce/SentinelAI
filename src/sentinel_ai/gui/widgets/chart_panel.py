@@ -2,15 +2,16 @@
 MODULE: GUI-003
 FILE: GUI-003-001
 Module Name: Chart Panel
-Version: 0.5.1
-Purpose: Provides the central embedded live candlestick chart container without trading or analysis logic.
-Dependencies: json, PySide6.QtCore, PySide6.QtWidgets, PySide6.QtWebEngineWidgets, sentinel_ai.models.market, sentinel_ai.utils.paths
+Version: 0.7.0
+Purpose: Provides the central embedded live candlestick chart container without trading or domain analysis logic.
+Dependencies: json, PySide6.QtCore, PySide6.QtWidgets, PySide6.QtWebEngineWidgets, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.utils.paths
 Change History:
 - 0.1.0: Added chart panel shell with strict GUI-only responsibility.
 - 0.3.0: Added market snapshot status rendering without analysis or trading logic.
 - 0.4.0: Added embedded web chart rendering from validated chart-feed payloads.
 - 0.5.0: Reused snapshot rendering path for live refresh updates without GUI market logic.
 - 0.5.1: Preserved GUI-only chart bridge for runtime pan, zoom, and review-state behavior.
+- 0.7.0: Added GUI-only market structure marker payload routing to chart runtime.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from PySide6.QtCore import Qt, QUrl
 from PySide6.QtWidgets import QFrame, QLabel, QStackedLayout, QVBoxLayout, QWidget
 
 from sentinel_ai.models.market import MarketDataSnapshot
+from sentinel_ai.models.market_structure import MarketStructureSnapshot
 from sentinel_ai.utils.paths import resource_path
 
 try:
@@ -114,6 +116,44 @@ class ChartPanel(QFrame):
             return
 
         self._render_market_snapshot(snapshot)
+
+    def set_market_structure_snapshot(self, structure_snapshot: MarketStructureSnapshot, max_markers: int) -> None:
+        """Route precomputed market structure markers to the embedded chart runtime."""
+        if self._chart_view is None or not self._chart_ready:
+            return
+
+        marker_limit = max(1, int(max_markers))
+        marker_points = structure_snapshot.marker_points[-marker_limit:]
+        markers = [
+            {
+                "time": int(point.time.timestamp()),
+                "price": point.price,
+                "kind": point.kind,
+                "label": "SH" if point.is_high else "SL",
+            }
+            for point in marker_points
+        ]
+        latest_break = structure_snapshot.latest_break
+        break_payload = None
+        if latest_break is not None:
+            break_payload = {
+                "time": int(latest_break.broken_at.timestamp()),
+                "price": latest_break.close_price,
+                "direction": latest_break.direction,
+                "label": "BOS↑" if latest_break.is_bullish else "BOS↓",
+            }
+        metadata = {
+            "symbol": structure_snapshot.symbol,
+            "timeframe": structure_snapshot.timeframe,
+            "bias": structure_snapshot.bias,
+            "summary": structure_snapshot.summary,
+            "latestBreak": break_payload,
+        }
+        script = (
+            "window.SentinelChart && "
+            f"window.SentinelChart.setMarketStructure({json.dumps(markers)}, {json.dumps(metadata)});"
+        )
+        self._chart_view.page().runJavaScript(script)
 
     def _render_market_snapshot(self, snapshot: MarketDataSnapshot) -> None:
         """Send validated chart candles to the embedded chart runtime."""

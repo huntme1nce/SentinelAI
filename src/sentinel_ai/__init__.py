@@ -2,7 +2,7 @@
 MODULE: CORE-000
 FILE: CORE-000-001
 Module Name: Sentinel AI Package
-Version: 0.6.0
+Version: 0.7.0
 Purpose: Exposes package-level application metadata.
 Dependencies: None
 Change History:
@@ -13,7 +13,8 @@ Change History:
 - 0.5.0: Updated package metadata for Sprint 5 live market refresh engine.
 - 0.5.1: Updated package metadata for refresh timing and chart navigation patch.
 - 0.6.0: Updated package metadata for symbol management foundation.
+- 0.7.0: Updated package metadata for market structure engine foundation.
 """
 
 __app_name__ = "Sentinel AI"
-__version__ = "0.6.0"
+__version__ = "0.7.0"

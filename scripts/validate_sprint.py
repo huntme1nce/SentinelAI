@@ -2,8 +2,8 @@
 MODULE: OPS-001
 FILE: OPS-001-001
 Module Name: Sprint Validator
-Version: 0.6.0
-Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, one-second refresh configuration, chart navigation assets, and symbol management.
+Version: 0.7.0
+Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, one-second refresh, symbol management, and market structure analysis.
 Dependencies: compileall, datetime, json, logging, pathlib, sys, pandas
 Change History:
 - 0.1.0: Added compile and resource validation for stable milestone handoff.
@@ -13,6 +13,7 @@ Change History:
 - 0.5.0: Added Sprint 5 live refresh service file and configuration validation.
 - 0.5.1: Added validation for one-second refresh defaults and chart navigation runtime controls.
 - 0.6.0: Added validation for symbol catalog models, contract methods, resolution service, and config persistence.
+- 0.7.0: Added validation for market structure models, engine output, and chart marker runtime.
 """
 
 from __future__ import annotations
@@ -28,7 +29,7 @@ import pandas as pd
 
 
 def main() -> int:
-    """Compile project source and verify required Sprint 5.1 refresh and chart navigation components."""
+    """Compile project source and verify required Sprint 7 market structure foundation components."""
     project_root = Path(__file__).resolve().parents[1]
     source_root = project_root / "src"
     required_files = [
@@ -44,6 +45,8 @@ def main() -> int:
         source_root / "sentinel_ai" / "market_data" / "market_refresh_service.py",
         source_root / "sentinel_ai" / "symbols" / "symbol_management_service.py",
         source_root / "sentinel_ai" / "models" / "symbol.py",
+        source_root / "sentinel_ai" / "models" / "market_structure.py",
+        source_root / "sentinel_ai" / "analysis" / "market_structure_engine.py",
         project_root / "SentinelAI.spec",
         project_root / "requirements.txt",
     ]
@@ -61,7 +64,7 @@ def main() -> int:
     if "sentinel_chart_runtime.js" not in html_resource or "window.SentinelChart" not in runtime_resource:
         print("Embedded chart resources failed validation.", file=sys.stderr)
         return 1
-    required_runtime_markers = ["mousedown", "wheel", "dblclick", "offsetFromRight", "resetViewToLatest"]
+    required_runtime_markers = ["mousedown", "wheel", "dblclick", "offsetFromRight", "resetViewToLatest", "setMarketStructure", "drawStructureMarkers"]
     if any(marker not in runtime_resource for marker in required_runtime_markers):
         print("Chart navigation runtime validation failed.", file=sys.stderr)
         return 1
@@ -72,6 +75,7 @@ def main() -> int:
         return 1
 
     sys.path.insert(0, str(source_root))
+    from sentinel_ai.analysis.market_structure_engine import MarketStructureEngine
     from sentinel_ai.config.config_service import ConfigService
     from sentinel_ai.market_data.candle_validator import CandleDataValidator
     from sentinel_ai.market_data.lightweight_chart_feed import LightweightChartFeedAdapter
@@ -217,6 +221,24 @@ def main() -> int:
         print("Symbol activation validation failed.", file=sys.stderr)
         return 1
 
+    if not config.market_structure.enabled or config.market_structure.swing_window != 2:
+        print("Market structure configuration validation failed.", file=sys.stderr)
+        return 1
+
+    structure_snapshot = MarketStructureEngine(
+        config=config.market_structure,
+        logger=logging.getLogger("sentinel_ai.validation.structure"),
+    ).analyze(snapshot)
+    if structure_snapshot.bias not in {"BULLISH", "BEARISH", "RANGING", "INSUFFICIENT_STRUCTURE"}:
+        print("Market structure bias validation failed.", file=sys.stderr)
+        return 1
+    if structure_snapshot.analyzed_candle_count != snapshot.candle_count:
+        print("Market structure candle-count validation failed.", file=sys.stderr)
+        return 1
+    if structure_snapshot.summary.strip() == "":
+        print("Market structure summary validation failed.", file=sys.stderr)
+        return 1
+
     try:
         json.dumps(chart_payload)
     except TypeError as error:
@@ -233,7 +255,8 @@ def main() -> int:
     print(
         "Sprint validation passed: source compiled, resources verified, config loaded, "
         "MT5 mapping available, market feed conversion validated, chart assets ready, "
-        "one-second live refresh configured, chart navigation ready, symbol management ready."
+        "one-second live refresh configured, chart navigation ready, symbol management ready, "
+        "market structure engine ready."
     )
     return 0
 

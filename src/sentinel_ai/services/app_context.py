@@ -2,9 +2,9 @@
 MODULE: SVC-002
 FILE: SVC-002-001
 Module Name: Application Context
-Version: 0.6.0
-Purpose: Composes Sentinel AI services without coupling GUI to trading, symbol management, or persistence internals.
-Dependencies: logging, sentinel_ai.config, sentinel_ai.database, sentinel_ai.logging_service, sentinel_ai.market_data, sentinel_ai.mt5, sentinel_ai.symbols
+Version: 0.7.0
+Purpose: Composes Sentinel AI services without coupling GUI to trading, symbol management, analysis, or persistence internals.
+Dependencies: logging, sentinel_ai.analysis, sentinel_ai.config, sentinel_ai.database, sentinel_ai.logging_service, sentinel_ai.market_data, sentinel_ai.mt5, sentinel_ai.symbols
 Change History:
 - 0.1.0: Added root dependency composition for Sprint 1 foundation.
 - 0.2.0: Added MT5 market data service composition.
@@ -12,6 +12,7 @@ Change History:
 - 0.4.0: Preserved service composition while GUI chart rendering remains isolated.
 - 0.5.0: Added live market refresh service composition.
 - 0.6.0: Added symbol management service composition and config service exposure.
+- 0.7.0: Added market structure engine composition.
 """
 
 from __future__ import annotations
@@ -19,6 +20,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from sentinel_ai.analysis.market_structure_engine import MarketStructureEngine
 from sentinel_ai.config.config_schema import SentinelConfig
 from sentinel_ai.config.config_service import ConfigService
 from sentinel_ai.database.database_service import DatabaseService
@@ -45,6 +47,7 @@ class ApplicationContext:
     symbol_service: SymbolManagementService
     market_data_feed_service: MarketDataFeedService
     market_refresh_service: MarketRefreshService
+    market_structure_engine: MarketStructureEngine
 
 
 class ApplicationContextFactory:
@@ -74,6 +77,10 @@ class ApplicationContextFactory:
             market_data_feed_service=market_data_feed_service,
             logger=logger,
         )
+        market_structure_engine = MarketStructureEngine(
+            config=config.market_structure,
+            logger=logger,
+        )
         logger.info("Application context initialized.")
         return ApplicationContext(
             config=config,
@@ -85,4 +92,5 @@ class ApplicationContextFactory:
             symbol_service=symbol_service,
             market_data_feed_service=market_data_feed_service,
             market_refresh_service=market_refresh_service,
+            market_structure_engine=market_structure_engine,
         )
