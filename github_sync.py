@@ -10,38 +10,31 @@ PROJECT_PATH = r"D:\projects\sentinelai"
 
 def run_git():
     try:
-        os.chdir(PROJECT_PATH)
+        import os
+        import subprocess
+        import datetime
+        from tkinter import messagebox
 
-        result = subprocess.run(
-            ["git", "add", "."],
-            capture_output=True,
-            text=True
-        )
-        if result.returncode != 0:
-            raise Exception(result.stderr)
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
         commit_msg = "Auto Update - " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        subprocess.run(["git", "add", "."], check=True)
+
         subprocess.run(
             ["git", "commit", "-m", commit_msg],
-            capture_output=True,
-            text=True
+            check=False
         )
 
-        result = subprocess.run(
-            ["git", "push"],
-            capture_output=True,
-            text=True
+        subprocess.run(
+            ["git", "push", "origin", "main"],
+            check=True
         )
 
-        if result.returncode != 0:
-            raise Exception(result.stderr)
-
-        messagebox.showinfo("Success", "Uploaded successfully!")
+        messagebox.showinfo("Success", "Project pushed successfully!")
 
     except Exception as e:
-        messagebox.showerror("Git Error", str(e))
-
+        messagebox.showerror("Error", str(e))
 
 root = tk.Tk()
 root.title("GitHub Sync")
