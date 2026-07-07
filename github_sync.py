@@ -3,38 +3,52 @@ from tkinter import messagebox
 import subprocess
 import datetime
 import os
-
-# Change this to your SentinelAI project folder
-PROJECT_PATH = r"D:\projects\sentinelai"
-
+import sys
 
 def run_git():
     try:
-        import os
-        import subprocess
-        import datetime
-        from tkinter import messagebox
+        # Detect the project folder
+        if getattr(sys, "frozen", False):
+            project_path = os.path.dirname(sys.executable)
+        else:
+            project_path = os.path.dirname(os.path.abspath(__file__))
 
-        os.chdir(os.path.dirname(os.path.abspath(__file__)))
+        os.chdir(project_path)
 
         commit_msg = "Auto Update - " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        subprocess.run(["git", "add", "."], check=True)
+        # Add files
+        result = subprocess.run(
+            ["git", "add", "."],
+            capture_output=True,
+            text=True
+        )
 
+        if result.returncode != 0:
+            raise Exception(result.stderr)
+
+        # Commit (ignore if nothing changed)
         subprocess.run(
             ["git", "commit", "-m", commit_msg],
-            check=False
+            capture_output=True,
+            text=True
         )
 
-        subprocess.run(
+        # Push
+        result = subprocess.run(
             ["git", "push", "origin", "main"],
-            check=True
+            capture_output=True,
+            text=True
         )
+
+        if result.returncode != 0:
+            raise Exception(result.stderr)
 
         messagebox.showinfo("Success", "Project pushed successfully!")
 
     except Exception as e:
-        messagebox.showerror("Error", str(e))
+        messagebox.showerror("Git Error", str(e))
+
 
 root = tk.Tk()
 root.title("GitHub Sync")
