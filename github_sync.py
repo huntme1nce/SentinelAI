@@ -5,9 +5,12 @@ import datetime
 import os
 import sys
 
+# Full path to Git (change this only if Git is installed somewhere else)
+GIT = r"C:\Program Files\Git\cmd\git.exe"
+
 def run_git():
     try:
-        # Detect the project folder
+        # Detect project folder
         if getattr(sys, "frozen", False):
             project_path = os.path.dirname(sys.executable)
         else:
@@ -15,61 +18,64 @@ def run_git():
 
         os.chdir(project_path)
 
+        # Verify we're inside a Git repository
+        if not os.path.exists(".git"):
+            raise Exception(
+                f"No .git folder found.\n\n"
+                f"Current folder:\n{project_path}\n\n"
+                f"Place github_sync.exe inside your SentinelAI project folder."
+            )
+
         commit_msg = "Auto Update - " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Add files
+        # Add
         result = subprocess.run(
-            ["git", "add", "."],
+            [GIT, "add", "."],
             capture_output=True,
             text=True
         )
-
         if result.returncode != 0:
             raise Exception(result.stderr)
 
-        # Commit (ignore if nothing changed)
+        # Commit (ignore "nothing to commit")
         subprocess.run(
-            ["git", "commit", "-m", commit_msg],
+            [GIT, "commit", "-m", commit_msg],
             capture_output=True,
             text=True
         )
 
         # Push
         result = subprocess.run(
-            ["git", "push", "origin", "main"],
+            [GIT, "push", "origin", "main"],
             capture_output=True,
             text=True
         )
-
         if result.returncode != 0:
             raise Exception(result.stderr)
 
-        messagebox.showinfo("Success", "Project pushed successfully!")
+        messagebox.showinfo("Success", "✅ Successfully pushed to GitHub!")
 
     except Exception as e:
         messagebox.showerror("Git Error", str(e))
 
 
 root = tk.Tk()
-root.title("GitHub Sync")
-root.geometry("320x150")
+root.title("SentinelAI GitHub Sync")
+root.geometry("350x170")
 root.resizable(False, False)
 
-label = tk.Label(
+tk.Label(
     root,
     text="SentinelAI GitHub Sync",
     font=("Arial", 14, "bold")
-)
-label.pack(pady=15)
+).pack(pady=15)
 
-push_btn = tk.Button(
+tk.Button(
     root,
-    text="Push to GitHub",
-    font=("Arial", 12),
-    width=20,
+    text="⬆ Push to GitHub",
+    width=22,
     height=2,
     command=run_git
-)
-push_btn.pack()
+).pack()
 
 root.mainloop()
