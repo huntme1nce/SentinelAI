@@ -1,99 +1,139 @@
 # Sentinel AI
 
-## Sprint 9.1: Bounded Chart Overlay Segments Patch
+## Version 2.5.0: Stabilization and Architecture Alignment Build
 
-Sentinel AI is a professional Windows desktop application for MT5 market analysis, statistical prediction tracking, and future controlled trading execution.
+This sprint stabilizes the v2.4.0 functional completion baseline before adding more trading features.
 
-Sprint 9.1 improves Sprint 9 chart usability. Support/resistance and liquidity are no longer rendered as full-width chart lines. They are now rendered as candle-bounded segments using the candle where the level was first detected and the candle where the related level was confirmed, touched, swept, or remains actively tracked. This follows the approved trading interpretation that levels should be tied to the candles that created them, not drawn endlessly across the entire chart.
+Primary focus:
 
-This sprint does not generate BUY/SELL predictions and does not place trades.
+```text
+Auto Trade locked/dormant for manual-mode verification
+Prediction lifecycle persistence foundation
+Deduplicated prediction recording during one-second refresh
+Linked prediction UID on Sentinel-owned ledger trades
+Formal unit tests for Auto Trade lock and prediction persistence
+Validator updated for Sprint 2.5.0
+```
 
-## Current Capability
+## Safety Position
 
-- PySide6 Windows desktop shell
-- Manual welcome window with Proverbs 13:11
-- SQLite database initialization
-- Prediction repository foundation
-- MT5 read-only connection foundation
-- MT5 account/session status
-- Broker symbol catalog loading
-- Active symbol validation and persistence
-- Symbol alias fallback for common gold symbols such as `XAUUSD`, `GOLD`, `XAUUSDm`, and `GOLDm#`
-- Validated MT5 candle feed
-- Embedded TradingView Lightweight Charts-style canvas rendering
-- One-second live market refresh
-- Chart drag left/right, mouse-wheel zoom, and double-click reset to latest
-- Read-only Market Structure Engine
-- Swing High / Swing Low markers on the chart
-- Persistent historical BOS markers on the chart
-- Last bullish BOS and bearish BOS context in the Current Prediction panel
-- Read-only Support and Resistance Engine
-- Ranked support/resistance zones on the chart
-- Support/resistance zones rendered as candle-bounded segments
-- Nearest support/resistance context in the Current Prediction panel
-- Read-only Liquidity Engine
-- Buy-side liquidity and sell-side liquidity pool overlays
-- Liquidity pools rendered as candle-bounded segments
-- Bullish and bearish liquidity sweep markers
-- Possible inducement candidate context
-- Reduced default chart overlay noise
-- Toolbar trend label updated from structure bias
-- Current Prediction panel remains WAIT while showing analysis context only
-- Statistics panel backed by persisted prediction records
+Auto Trade remains unavailable in the UI until manual-mode lifecycle results have enough verified wins/losses.
 
-## What Sprint 9.1 Does Not Do
+Toolbar:
 
-- No BUY/SELL prediction generation
-- No confidence scoring
-- No learning adjustments
-- No manual trade placement
-- No auto trade execution
-- No GUI layout redesign
+```text
+Auto Trade: LOCKED
+```
 
-## Setup
+Runtime guard:
 
-Use Python 3.12 on Windows.
+```text
+auto_trade_locked: true
+```
+
+Even if a signal is emitted programmatically, the application forces Auto Trade back to OFF while the lock is active.
+
+## Preserved v2.4.0 Capability
+
+The following v2.4.0 functionality remains preserved:
+
+```text
+Live MT5 connection
+Live chart
+Symbol selection and persistence
+Market structure, support/resistance, liquidity, imbalance, momentum analysis
+Confidence scoring
+Entry validation
+Risk/reward plan generation
+Manual trade review
+Manual MT5 order placement
+Adaptive filling-mode fallback
+Sentinel-owned trade ledger
+Open trade tracking
+Pending close settlement
+TP/SL close result resolver
+Closed-trade statistics
+Ledger tools
+Repair Pending History
+Ledger export
+Guarded reset
+Simplified dashboard
+Guarded auto-trade code retained but locked/dormant
+```
+
+## Prediction Persistence
+
+Sprint 2.5.0 adds a dedicated `PredictionLifecycleService`.
+
+It records material prediction changes from the risk/reward stage into SQLite and suppresses duplicate rows when the one-second refresh produces the same recommendation repeatedly.
+
+When a Sentinel-owned trade is opened, the linked prediction is marked `TRADE_ACTIVE`.
+
+When the ledger verifies a close result, the linked prediction is closed as:
+
+```text
+WIN
+LOSS
+BREAKEVEN
+```
+
+## Main Dashboard
+
+Visible rows remain user-focused:
+
+```text
+Today's Trades
+Win Rate
+Loss Rate
+Net P/L
+Open Trades
+Closed Trades
+Ledger Win Rate
+Ledger Net P/L
+Lifecycle Stage
+Result Status
+Last Result
+Last Close Type
+Active Position
+Open P/L
+Position Ticket
+Protection Status
+Ledger Warning
+```
+
+Backend diagnostics stay in the app/ledger tools instead of the main dashboard.
+
+## Ledger Tools
+
+```text
+Repair Pending History
+Archive Stale Pending
+Export Ledger
+Reset Test Ledger
+```
+
+Reset is blocked while an active Sentinel trade is open.
+
+## Run
 
 ```powershell
 cd D:\projects\sentinelai
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python scripts\validate_sprint.py
-```
-
-Run the application:
-
-```powershell
 $env:PYTHONPATH="src"
+python scripts\validate_sprint.py
 python -m sentinel_ai.main
 ```
 
-## Important Dependency Note
+## Validation
 
-`numpy==1.26.4` is intentionally pinned because the current MetaTrader5 Python package used by Sentinel AI requires NumPy 1.x binary compatibility.
+Expected validator result includes:
 
-## Chart Controls
+```text
+auto-trade lock ready
+prediction persistence ready
+formal tests ready
+```
 
-- Drag left/right: review previous candles
-- Mouse wheel: zoom in/out
-- Double-click: reset chart to latest view
+## Testing Reminder
 
-## Chart Overlay Priority
-
-1. Candles
-2. Bounded support/resistance segments
-3. Swing markers
-4. BOS markers
-5. Bounded liquidity segments and liquidity sweep markers
-
-## Engineering Notes
-
-- GUI does not call MT5 directly.
-- GUI does not calculate structure, support/resistance, or liquidity.
-- MT5 access remains isolated in the MT5 service and market data services.
-- Market structure analysis is isolated in `MarketStructureEngine`.
-- Support/resistance analysis is isolated in `SupportResistanceEngine`.
-- Liquidity analysis is isolated in `LiquidityEngine`.
-- Liquidity is treated as confirmation context only, not a standalone strategy.
-- Support/resistance and liquidity overlays are rendered as context-bounded chart segments, not full-chart lines.
-- Trading controls remain disabled because trade execution is not implemented yet.
+Use demo first. Manual mode remains the verification path before Auto Trade is unlocked in a future sprint.

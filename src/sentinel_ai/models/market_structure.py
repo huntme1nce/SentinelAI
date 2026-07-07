@@ -2,12 +2,13 @@
 MODULE: MODEL-004
 FILE: MODEL-004-001
 Module Name: Market Structure Models
-Version: 0.9.0
+Version: 0.9.2
 Purpose: Defines immutable market-structure analysis results used by replaceable analysis engines.
 Dependencies: dataclasses, datetime
 Change History:
 - 0.7.0: Added swing point, structure break, and market structure snapshot models for Sprint 7.
 - 0.9.0: Added persistent historical BOS storage for chart visibility and analysis context.
+- 0.9.2: Added structure event typing so BOS and COC can be labeled separately.
 """
 
 from __future__ import annotations
@@ -38,13 +39,14 @@ class SwingPoint:
 
 @dataclass(frozen=True)
 class StructureBreak:
-    """Represent a confirmed close-based break of market structure."""
+    """Represent a confirmed close-based market-structure event."""
 
     direction: str
     reference_price: float
     reference_time: datetime
     broken_at: datetime
     close_price: float
+    event_type: str = "BOS"
 
     @property
     def is_bullish(self) -> bool:
@@ -56,10 +58,23 @@ class StructureBreak:
         """Return True when the structure break is bearish."""
         return self.direction == "BEARISH"
 
+
+    @property
+    def is_change_of_character(self) -> bool:
+        """Return True when the structure event is classified as a change of character."""
+        return self.event_type == "COC"
+
+    @property
+    def is_break_of_structure(self) -> bool:
+        """Return True when the structure event is classified as a continuation break of structure."""
+        return self.event_type == "BOS"
+
     @property
     def label(self) -> str:
-        """Return the compact chart label for this structure break."""
-        return "BOS↑" if self.is_bullish else "BOS↓"
+        """Return the compact chart label for this structure event."""
+        prefix = "COC" if self.is_change_of_character else "BOS"
+        suffix = "↑" if self.is_bullish else "↓"
+        return f"{prefix}{suffix}"
 
 
 @dataclass(frozen=True)

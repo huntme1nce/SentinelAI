@@ -3,8 +3,8 @@
     "module_id": "CFG-003",
     "file_id": "CFG-003-001",
     "module_name": "Default Configuration Resource",
-    "version": "0.9.1",
-    "purpose": "Provides packaged default Sentinel AI configuration values, including bounded chart overlay segments for market structure, support/resistance, and liquidity analysis.",
+    "version": "2.5.0",
+    "purpose": "Provides packaged default Sentinel AI configuration values for stabilization and architecture-alignment build.",
     "change_history": [
       "0.1.0: Added packaged defaults for Sprint 1 foundation.",
       "0.2.0: Added MT5 connection defaults.",
@@ -16,12 +16,66 @@
       "0.7.0: Added market structure engine defaults and application version update.",
       "0.8.0: Added support/resistance engine defaults and application version update.",
       "0.9.0: Added BOS visibility and liquidity engine defaults with application version update.",
-      "0.9.1: Changed support/resistance and liquidity overlays to candle-bounded segments and reduced default visual noise."
+      "0.9.1: Changed support/resistance and liquidity overlays to candle-bounded segments and reduced default visual noise.",
+      "0.9.2: Added imbalance defaults for fair value gap and order block boxed overlays and enabled BOS/COC labeling support.",
+      "0.9.3.1: Added active-only overlay defaults and fallback S/R range box behavior using latest swing boundaries.",
+      "0.9.3.2: Added chart right-side future scrolling defaults and flicker-reduced rendering behavior.",
+      "0.9.3.3: Added consolidation-only S/R range behavior and unchanged-overlay flicker suppression.",
+      "0.9.3.4: Added close-based S/R box invalidation and forced compact dashboard reasons.",
+      "0.9.3.5: Added true consolidation S/R filtering and double-buffer flicker reduction defaults.",
+      "0.9.3.6: Added rendered active-range status accuracy and render debounce flicker reduction.",
+      "0.9.3.7: Added physical-pixel canvas buffer swap to prevent partial redraw artifacts.",
+      "0.9.3.8: Removed buffer-copy rendering and restored single-canvas repaint path to prevent rectangular repaint artifacts.",
+      "1.0.0: Added Momentum Engine defaults for EMA, MACD, stochastic, and candle momentum context.",
+      "1.1.0: Added Confidence Engine defaults for context-only scoring across structure, S/R, liquidity, imbalance, and momentum.",
+      "1.1.1: Preserved Confidence Engine defaults while fixing live refresh display wiring.",
+      "1.2.0: Added Entry Validation Engine defaults for BUY_SETUP / SELL_SETUP / WAIT setup validation.",
+      "1.2.1: Refined Entry Validation setup alignment and WAIT reason behavior.",
+      "1.2.2: Added pullback-aware Entry Validation behavior using existing setup settings.",
+      "1.2.3: Added neutral-momentum Entry Validation allowance inside valid setup zones.",
+      "1.3.0: Added Risk Reward Engine defaults for TP, SL, and minimum risk/reward validation.",
+      "1.3.1: Added smart TP target selection behavior without changing risk defaults.",
+      "1.3.2: Added rejected-plan display labeling and stricter directional TP guard behavior.",
+      "1.3.3: Added extended TP target discovery from range extremes, imbalance far edges, and ATR projection.",
+      "1.4.0: Added chart trade-plan overlay and manual review gate behavior without order execution.",
+      "1.4.1: Preserved trade plan overlay settings while adding polished manual review modal and reviewed-plan snapshot logging.",
+      "1.5.0: Added user-confirmed manual MT5 market order placement settings.",
+      "1.5.1: Added adaptive order filling fallback for brokers that reject AUTO/IOC/FOK/RETURN filling mode.",
+      "1.6.0: Added position monitoring and daily trade statistics integration.",
+      "1.6.1: Added active-trade chart lock and position-priority display behavior.",
+      "1.6.1.1: Fixed startup AttributeError by initializing active-position lock before first risk/reward update.",
+      "1.6.1.2: Fixed active-position chart compression when broker position TP or SL is missing/zero.",
+      "1.6.2: Added active-position missing SL/TP warning display without automatic repair.",
+      "1.7.0: Added closed-trade lifecycle result tracking and last-result dashboard fields.",
+      "1.7.1: Added timeframe-based candle countdown timer and active-trade header priority display.",
+      "1.7.1.1: Fixed candle countdown timer stuck at full timeframe by using wall-clock timeframe alignment and repainting every second.",
+      "1.7.1.2: Anchored countdown to latest broker candle open and prevented false reset before a new candle arrives.",
+      "1.7.1.3: Fixed countdown stuck at full duration by normalizing candle timestamp units and using live candle-cycle modulo countdown.",
+      "1.7.2: Removed unreliable candle countdown timer and added MT5 history matching fallback plus close type detection.",
+      "1.7.3: Restricted win/loss statistics to trades created from Sentinel AI and suppressed outside MT5 history.",
+      "1.7.4: Added persistent Sentinel-owned trade journal and magic/comment recovery for app-created trades not previously reflected in dashboard.",
+      "1.7.5: Added persistent Sentinel trade ledger, multi-ticket app statistics, and active Sentinel trade recovery.",
+      "1.8.0: Added closed-trade outcome persistence to the Sentinel trade ledger and dashboard ledger performance totals.",
+      "1.8.1: Added open/closed Sentinel ledger counters and result status dashboard labeling.",
+      "1.8.2: Added active-ticket close guard and strict MT5 deal-entry filtering.",
+      "1.8.3: Added pending close settlement state and dashboard counter.",
+      "1.8.4: Added lifecycle stage, tracked Sentinel ticket, and pending close age dashboard diagnostics.",
+      "1.8.4.1: Fixed lifecycle result-status helper binding on startup.",
+      "1.9.0: Added robust close-history resolver, close resolver status, and audit warning diagnostics.",
+      "1.9.0.1: Fixed robust close resolver method binding inside MetaTrader5Service.",
+      "1.9.0.2: Fixed close resolver and audit helper method binding inside SentinelApplication.",
+      "2.0.0: Added current trade priority, stale pending backlog, ledger health, and stage completion dashboard fields.",
+      "2.0.1: Separated current pending-close trades from stale pending backlog records.",
+      "2.1.0: Added ledger maintenance tools for archive stale pending, export ledger, and guarded reset.",
+      "2.2.0: Added lenient close settlement resolver and moved pending diagnostics out of main dashboard.",
+      "2.3.0: Added pending history repair tool and final manual-mode completion status.",
+      "2.4.0: Added guarded auto-trade execution engine, default OFF, confirmation-gated, one-trade-at-a-time.",
+      "2.5.0: Locked Auto Trade by default and added prediction persistence stabilization."
     ]
   },
   "application": {
     "name": "Sentinel AI",
-    "version": "0.9.1",
+    "version": "2.5.0",
     "environment": "production"
   },
   "trading": {
@@ -30,7 +84,8 @@
     "auto_trade_enabled": false,
     "one_trade_at_a_time": true,
     "minimum_confidence": 75.0,
-    "default_risk_reward": 2.0
+    "default_risk_reward": 2.0,
+    "auto_trade_locked": true
   },
   "database": {
     "filename": "sentinel_ai.sqlite3"
@@ -87,8 +142,8 @@
       "lookback_candles": 200,
       "swing_window": 2,
       "minimum_swing_distance_price": 0.0,
-      "max_chart_markers": 50,
-      "max_bos_markers": 16
+      "max_chart_markers": 2,
+      "max_bos_markers": 1
     },
     "support_resistance": {
       "enabled": true,
@@ -97,15 +152,74 @@
       "zone_atr_multiplier": 0.25,
       "minimum_zone_width_price": 0.0,
       "min_touch_count": 2,
-      "max_chart_zones": 8
+      "max_chart_zones": 2
     },
     "liquidity": {
       "enabled": true,
       "lookback_candles": 200,
       "sweep_buffer_price": 0.0,
-      "max_chart_pools": 10,
-      "max_chart_sweeps": 14,
+      "max_chart_pools": 2,
+      "max_chart_sweeps": 1,
       "inducement_distance_price": 0.0
+    },
+    "imbalance": {
+      "enabled": true,
+      "lookback_candles": 200,
+      "max_chart_fvg_zones": 2,
+      "max_chart_order_blocks": 2,
+      "minimum_gap_price": 0.0,
+      "order_block_lookup_candles": 6
+    },
+    "momentum": {
+      "enabled": true,
+      "lookback_candles": 200,
+      "ema_fast_period": 9,
+      "ema_slow_period": 21,
+      "macd_fast_period": 12,
+      "macd_slow_period": 26,
+      "macd_signal_period": 9,
+      "stochastic_k_period": 14,
+      "stochastic_d_period": 3,
+      "candle_momentum_lookback": 8,
+      "strong_body_ratio_threshold": 0.45,
+      "minimum_histogram_abs": 0.0
+    },
+    "confidence": {
+      "enabled": true,
+      "structure_weight": 25.0,
+      "support_resistance_weight": 15.0,
+      "liquidity_weight": 15.0,
+      "imbalance_weight": 20.0,
+      "momentum_weight": 25.0,
+      "medium_context_threshold": 45.0,
+      "high_context_threshold": 70.0
+    },
+    "entry_validation": {
+      "enabled": true,
+      "minimum_setup_confidence": 60.0,
+      "proximity_atr_multiplier": 1.25,
+      "minimum_zone_tolerance_price": 1.0,
+      "atr_lookback_candles": 14,
+      "require_momentum_alignment": true
+    },
+    "risk_reward": {
+      "enabled": true,
+      "minimum_risk_reward_ratio": 1.3,
+      "stop_buffer_atr_multiplier": 0.35,
+      "minimum_stop_buffer_price": 0.5,
+      "minimum_stop_distance_price": 1.0,
+      "minimum_target_distance_price": 1.0,
+      "atr_lookback_candles": 14
     }
+  },
+  "manual_trading": {
+    "enabled": true,
+    "default_volume": 0.01,
+    "max_volume": 1.0,
+    "deviation_points": 30,
+    "magic_number": 151500,
+    "order_comment": "SentinelAI manual",
+    "order_filling": "AUTO",
+    "one_position_per_symbol": true
   }
 }
