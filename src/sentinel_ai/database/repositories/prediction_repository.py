@@ -2,10 +2,11 @@
 MODULE: DB-002
 FILE: DB-002-001
 Module Name: Prediction Repository
-Version: 0.1.0
-Purpose: Provides permanent SQLite persistence for Sentinel AI predictions.
+Version: 2.8.0
+Purpose: Provides permanent SQLite persistence and learning dataset queries for Sentinel AI predictions.
 Dependencies: sqlite3, sentinel_ai.database.database_service, sentinel_ai.models.prediction
 Change History:
+- 2.8.0: Added closed learning dataset query for Stage 9 statistical readiness.
 - 0.1.0: Added create, status update, outcome update, and statistics queries.
 """
 
@@ -111,6 +112,54 @@ class PredictionRepository:
             if cursor.rowcount != 1:
                 raise KeyError(f"Prediction not found: {prediction_uid}")
             connection.commit()
+
+
+    def closed_learning_dataset(self, review_window_days: int) -> list[dict[str, Any]]:
+        """Return closed prediction rows prepared for learning-readiness review."""
+        window_days = max(1, int(review_window_days))
+        with self._database_service.connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    prediction_uid, symbol, timeframe, direction, confidence, risk_reward,
+                    outcome, tp_hit, sl_hit, reason, created_at, closed_at,
+                    duration_seconds, metadata_json
+                FROM predictions
+                WHERE status = 'CLOSED'
+                  AND outcome IN ('WIN', 'LOSS', 'BREAKEVEN')
+                  AND closed_at IS NOT NULL
+                  AND datetime(closed_at) >= datetime('now', ?)
+                ORDER BY closed_at ASC, id ASC
+                """,
+                (f"-{window_days} days",),
+            ).fetchall()
+        dataset: list[dict[str, Any]] = []
+        for row in rows:
+            try:
+                import json
+
+                metadata = json.loads(row["metadata_json"] or "{}")
+            except (TypeError, ValueError):
+                metadata = {}
+            dataset.append(
+                {
+                    "prediction_uid": str(row["prediction_uid"]),
+                    "symbol": str(row["symbol"]),
+                    "timeframe": str(row["timeframe"]),
+                    "direction": str(row["direction"]),
+                    "confidence": float(row["confidence"] or 0.0),
+                    "risk_reward": None if row["risk_reward"] is None else float(row["risk_reward"]),
+                    "outcome": str(row["outcome"]),
+                    "tp_hit": bool(row["tp_hit"]),
+                    "sl_hit": bool(row["sl_hit"]),
+                    "reason": str(row["reason"]),
+                    "created_at": str(row["created_at"]),
+                    "closed_at": None if row["closed_at"] is None else str(row["closed_at"]),
+                    "duration_seconds": None if row["duration_seconds"] is None else int(row["duration_seconds"]),
+                    "metadata": metadata if isinstance(metadata, dict) else {},
+                }
+            )
+        return dataset
 
     def summary_statistics(self) -> dict[str, Any]:
         """Return stable aggregate statistics for dashboard display."""

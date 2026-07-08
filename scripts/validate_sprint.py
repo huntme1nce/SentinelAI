@@ -85,7 +85,7 @@ import pandas as pd
 
 
 def main() -> int:
-    """Compile project source and verify required Sprint 9 BOS visibility and liquidity foundation components."""
+    """Compile project source and verify required Sentinel AI Stage 9 learning-readiness components."""
     project_root = Path(__file__).resolve().parents[1]
     source_root = project_root / "src"
     required_files = [
@@ -120,9 +120,13 @@ def main() -> int:
         source_root / "sentinel_ai" / "analysis" / "risk_reward_engine.py",
         source_root / "sentinel_ai" / "services" / "prediction_lifecycle_service.py",
         source_root / "sentinel_ai" / "services" / "trade_manager_service.py",
+        source_root / "sentinel_ai" / "services" / "learning_readiness_service.py",
+        source_root / "sentinel_ai" / "models" / "learning.py",
+        source_root / "sentinel_ai" / "database" / "repositories" / "learning_repository.py",
         project_root / "tests" / "test_trading_config_lock.py",
         project_root / "tests" / "test_prediction_lifecycle_service.py",
         project_root / "tests" / "test_trade_manager_service.py",
+        project_root / "tests" / "test_learning_readiness_service.py",
         project_root / "SentinelAI.spec",
         project_root / "requirements.txt",
     ]
@@ -161,6 +165,8 @@ def main() -> int:
     from sentinel_ai.models.position_monitoring import DailyTradeStatisticsSnapshot, PositionMonitorSnapshot
     from sentinel_ai.models.sentinel_trade import SentinelOwnedTrade
     from sentinel_ai.services.trade_manager_service import TradeManagerService
+    from sentinel_ai.services.learning_readiness_service import LearningReadinessService
+    from sentinel_ai.models.learning import LearningReadinessSnapshot
     from sentinel_ai.analysis.market_structure_engine import MarketStructureEngine
     from sentinel_ai.analysis.support_resistance_engine import SupportResistanceEngine
     from sentinel_ai.config.config_service import ConfigService
@@ -335,11 +341,14 @@ def main() -> int:
     if "M5" not in Mt5TimeframeMapper.SUPPORTED_TIMEFRAMES:
         print("MT5 timeframe mapper validation failed.", file=sys.stderr)
         return 1
-    if config.application.version != "2.7.0":
-        print("Application version must be 2.7.0 for Sprint 2.7 Stage 8 Trade Manager service completion.", file=sys.stderr)
+    if config.application.version != "2.8.0":
+        print("Application version must be 2.8.0 for Sprint 2.8 Stage 9 Learning Readiness build.", file=sys.stderr)
         return 1
     if not config.trading.auto_trade_locked:
-        print("Auto Trade must remain locked for Sprint 2.7 Stage 8 Trade Manager service completion.", file=sys.stderr)
+        print("Auto Trade must remain locked for Sprint 2.8 Stage 9 Learning Readiness build.", file=sys.stderr)
+        return 1
+    if config.learning.automatic_parameter_adjustment_enabled:
+        print("Automatic learning parameter adjustment must remain disabled for Stage 9.", file=sys.stderr)
         return 1
     if config.market_data.default_feed_bar_count < 1:
         print("Market data configuration validation failed.", file=sys.stderr)
@@ -1145,6 +1154,18 @@ def main() -> int:
         print("Manual trade execution model validation failed.", file=sys.stderr)
         return 1
 
+
+    dummy_learning_snapshot = LearningReadinessSnapshot(
+        status="COLLECTING_DATA",
+        action="NO_PARAMETER_CHANGE",
+        recommendation="Validation only. No automatic parameter change.",
+        sample_size=0,
+        minimum_sample_size=config.learning.minimum_closed_trades_for_review,
+    )
+    if dummy_learning_snapshot.action != "NO_PARAMETER_CHANGE":
+        print("Learning readiness model validation failed.", file=sys.stderr)
+        return 1
+
     try:
         json.dumps(chart_payload)
     except TypeError as error:
@@ -1168,7 +1189,7 @@ def main() -> int:
         "Sprint validation passed: source compiled, resources verified, config loaded, "
         "MT5 mapping available, market feed conversion validated, chart assets ready, "
         "one-second live refresh configured, chart navigation ready, symbol management ready, "
-        "market structure engine ready, support/resistance engine ready, liquidity engine ready, imbalance engine ready, momentum engine ready, confidence engine ready, entry validation engine ready, risk/reward engine ready, active overlay range boxing ready, chart right-scroll ready, true consolidation filter ready, rendered-range status ready, single-canvas repaint path ready, trade plan overlay ready, manual review gate ready, polished manual order modal ready, manual MT5 order placement ready, adaptive filling-mode fallback ready, position monitoring ready, daily trade statistics ready, active trade chart lock ready, position-priority display ready, startup lock initialization ready, missing TP chart-scale guard ready, active protection warning ready, closed-trade lifecycle tracking ready, last result dashboard ready, active header priority ready, countdown removed ready, MT5 history fallback ready, close type dashboard ready, Sentinel-owned tracking ready, outside MT5 trade suppression ready, Sentinel journal persistence ready, Sentinel magic/comment recovery ready, persistent Sentinel trade ledger ready, multi-ticket app statistics ready, active Sentinel trade recovery ready, ledger outcome persistence ready, ledger performance dashboard ready, open/closed ledger dashboard ready, trade result verification status ready, active-ticket close guard ready, strict DEAL_ENTRY_OUT filtering ready, false close suppression ready, pending close settlement ready, lifecycle diagnostics ready, pending close age diagnostics ready, lifecycle result-status binding hotfix ready, robust close resolver ready, resolver audit diagnostics ready, MT5 resolver binding hotfix ready, app resolver helper binding hotfix ready, final stabilization dashboard ready, current trade priority ready, stale pending backlog audit ready, pending close/backlog separation ready, ledger maintenance tools ready, stale archive/export/reset ready, lenient TP close resolver ready, simplified dashboard ready, pending history repair ready, manual-mode completion build ready, guarded auto-trade completion ready, auto-trade lock ready, prediction persistence ready, Auto Trade diagnostics ready, Stage 8 Trade Manager service ready, formal tests ready."
+        "market structure engine ready, support/resistance engine ready, liquidity engine ready, imbalance engine ready, momentum engine ready, confidence engine ready, entry validation engine ready, risk/reward engine ready, active overlay range boxing ready, chart right-scroll ready, true consolidation filter ready, rendered-range status ready, single-canvas repaint path ready, trade plan overlay ready, manual review gate ready, polished manual order modal ready, manual MT5 order placement ready, adaptive filling-mode fallback ready, position monitoring ready, daily trade statistics ready, active trade chart lock ready, position-priority display ready, startup lock initialization ready, missing TP chart-scale guard ready, active protection warning ready, closed-trade lifecycle tracking ready, last result dashboard ready, active header priority ready, countdown removed ready, MT5 history fallback ready, close type dashboard ready, Sentinel-owned tracking ready, outside MT5 trade suppression ready, Sentinel journal persistence ready, Sentinel magic/comment recovery ready, persistent Sentinel trade ledger ready, multi-ticket app statistics ready, active Sentinel trade recovery ready, ledger outcome persistence ready, ledger performance dashboard ready, open/closed ledger dashboard ready, trade result verification status ready, active-ticket close guard ready, strict DEAL_ENTRY_OUT filtering ready, false close suppression ready, pending close settlement ready, lifecycle diagnostics ready, pending close age diagnostics ready, lifecycle result-status binding hotfix ready, robust close resolver ready, resolver audit diagnostics ready, MT5 resolver binding hotfix ready, app resolver helper binding hotfix ready, final stabilization dashboard ready, current trade priority ready, stale pending backlog audit ready, pending close/backlog separation ready, ledger maintenance tools ready, stale archive/export/reset ready, lenient TP close resolver ready, simplified dashboard ready, pending history repair ready, manual-mode completion build ready, guarded auto-trade completion ready, auto-trade lock ready, prediction persistence ready, Auto Trade diagnostics ready, Stage 8 Trade Manager service ready, Stage 9 learning readiness ready, formal tests ready."
     )
     return 0
 

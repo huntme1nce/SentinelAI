@@ -2,10 +2,11 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-2.6.0
+Version: 2.8.0
 Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, market-structure, analysis, or Auto Trade diagnostics logic.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models
 Change History:
+- 2.8.0: Preserved GUI shell while statistics panel now displays learning-readiness fields.
 - 2.6.0: Routed Auto Trade diagnostics to the statistics dashboard.
 - 2.5.0: Added explicit Auto Trade locked-state UI guard for manual-mode stabilization.
 - 2.4.0: Enabled guarded Auto Trade control and added programmatic auto-trade state updates.
@@ -459,6 +460,7 @@ class MainWindow(QMainWindow):
         self,
         position_snapshot: PositionMonitorSnapshot,
         daily_statistics_snapshot: DailyTradeStatisticsSnapshot | None = None,
+        learning_statistics: dict[str, object] | None = None,
     ) -> None:
         """Display active position monitoring and lock manual trade while a position is open."""
         self._has_active_position_lock = bool(position_snapshot.has_open_position)
@@ -531,6 +533,8 @@ class MainWindow(QMainWindow):
                 "history_match": daily_statistics_snapshot.history_match_mode or "-",
                 "last_closed_ticket": daily_statistics_snapshot.last_closed_ticket or "-",
             }
+            if learning_statistics:
+                statistics.update(learning_statistics)
             self._statistics_panel.update_statistics(statistics, daily_statistics_snapshot.message)
             if not position_snapshot.has_open_position:
                 learning_status = daily_statistics_snapshot.message

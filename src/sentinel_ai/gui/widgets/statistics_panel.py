@@ -2,10 +2,11 @@
 MODULE: GUI-003
 FILE: GUI-003-003
 Module Name: Statistics Panel
-2.6.0
+Version: 2.8.0
 Purpose: Displays persistent prediction statistics and Auto Trade diagnostics in the bottom-right dashboard area.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets
 Change History:
+- 2.8.0: Added compact learning-readiness rows for Stage 9 evidence review.
 - 2.6.0: Added Auto Trade status and reason rows to expose execution blockers.
 - 2.4.0: Preserved simplified dashboard for guarded auto-trade completion build.
 - 2.3.0: Preserved simplified dashboard while ledger repair stays in tools/backend.
@@ -87,6 +88,10 @@ class StatisticsPanel(QFrame):
             "Ledger Warning",
             "Auto Trade Status",
             "Auto Trade Reason",
+            "Learning Status",
+            "Learning Sample",
+            "Learning Pattern",
+            "Learning Action",
         ]
         for row, label_text in enumerate(labels):
             label = QLabel(f"{label_text}:")
@@ -110,6 +115,10 @@ class StatisticsPanel(QFrame):
         self._fields["Ledger Net P/L"].setText(f"{statistics.get('ledger_net_profit', 0):.2f}")
         self._fields["Lifecycle Stage"].setText(str(statistics.get("lifecycle_stage", "-")))
         self._fields["Result Status"].setText(str(statistics.get("result_status", learning_status)))
+        self._fields["Learning Status"].setText(str(statistics.get("learning_status", learning_status)))
+        self._fields["Learning Sample"].setText(str(statistics.get("learning_sample_size", "0/0")))
+        self._fields["Learning Pattern"].setText(str(statistics.get("learning_pattern", "None yet")))
+        self._fields["Learning Action"].setText(str(statistics.get("learning_action", "NO_PARAMETER_CHANGE")))
         self._fields["Last Result"].setText(str(statistics.get("last_result", "-")))
         self._fields["Last Close Type"].setText(str(statistics.get("last_close_type", "-")))
         warning = str(statistics.get("audit_warning", "-"))

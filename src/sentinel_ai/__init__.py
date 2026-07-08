@@ -2,10 +2,11 @@
 MODULE: CORE-000
 FILE: CORE-000-001
 Module Name: Sentinel AI Package
-Version: 2.7.0
+Version: 2.8.0
 Purpose: Exposes package-level application metadata.
 Dependencies: None
 Change History:
+- 2.8.0: Updated package metadata for Stage 9 Learning Readiness build.
 - 2.7.0: Updated package metadata for Stage 8 Trade Manager service completion build.
 - 2.6.0: Updated package metadata for Auto Trade diagnostics and manual lifecycle verification build.
 - 2.5.0: Updated package metadata for stabilization and architecture alignment build.
@@ -56,4 +57,4 @@ Change History:
 """
 
 __app_name__ = "Sentinel AI"
-__version__ = "2.7.0"
+__version__ = "2.8.0"

@@ -2,10 +2,11 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-Version: 2.7.0
-Purpose: Defines validated configuration models for Sentinel AI, including modular analysis-engine settings.
+Version: 2.8.0
+Purpose: Defines validated configuration models for Sentinel AI, including modular analysis-engine and learning-readiness settings.
 Dependencies: dataclasses, typing
 Change History:
+- 2.8.0: Added LearningConfig for Stage 9 statistical review readiness without automatic parameter mutation.
 - 2.7.0: Preserved schema while versioning the Stage 8 Trade Manager service completion build.
 - 2.6.0: Preserved schema while versioning the Auto Trade diagnostics sprint.
 - 2.5.0: Added explicit Auto Trade lock configuration for stabilization baseline.
@@ -619,6 +620,44 @@ class ManualTradingConfig:
 
 
 @dataclass(frozen=True)
+class LearningConfig:
+    """Represent statistical learning-readiness review settings without automatic parameter mutation."""
+
+    statistical_review_enabled: bool
+    review_window_days: int
+    minimum_closed_trades_for_review: int
+    minimum_pattern_losses: int
+    max_failure_patterns: int
+    automatic_parameter_adjustment_enabled: bool
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "LearningConfig":
+        """Create a LearningConfig from a dictionary."""
+        review_window_days = int(data.get("review_window_days", 30))
+        minimum_closed_trades = int(data.get("minimum_closed_trades_for_review", 30))
+        minimum_pattern_losses = int(data.get("minimum_pattern_losses", 3))
+        max_failure_patterns = int(data.get("max_failure_patterns", 3))
+        if review_window_days < 1:
+            raise ValueError("learning.review_window_days must be at least one day.")
+        if minimum_closed_trades < 1:
+            raise ValueError("learning.minimum_closed_trades_for_review must be at least one.")
+        if minimum_pattern_losses < 1:
+            raise ValueError("learning.minimum_pattern_losses must be at least one.")
+        if max_failure_patterns < 1:
+            raise ValueError("learning.max_failure_patterns must be at least one.")
+        if bool(data.get("automatic_parameter_adjustment_enabled", False)):
+            raise ValueError("Stage 9 forbids automatic learning parameter adjustments. Keep automatic_parameter_adjustment_enabled false.")
+        return cls(
+            statistical_review_enabled=bool(data.get("statistical_review_enabled", True)),
+            review_window_days=review_window_days,
+            minimum_closed_trades_for_review=minimum_closed_trades,
+            minimum_pattern_losses=minimum_pattern_losses,
+            max_failure_patterns=max_failure_patterns,
+            automatic_parameter_adjustment_enabled=False,
+        )
+
+
+@dataclass(frozen=True)
 class DatabaseConfig:
     """Represent database file settings."""
 
@@ -681,6 +720,7 @@ class SentinelConfig:
     entry_validation: EntryValidationConfig
     risk_reward: RiskRewardConfig
     manual_trading: ManualTradingConfig
+    learning: LearningConfig
     database: DatabaseConfig
     logging: LoggingConfig
     ui: UiConfig
@@ -703,6 +743,7 @@ class SentinelConfig:
             entry_validation=EntryValidationConfig.from_dict(data["analysis"]["entry_validation"]),
             risk_reward=RiskRewardConfig.from_dict(data["analysis"]["risk_reward"]),
             manual_trading=ManualTradingConfig.from_dict(data["manual_trading"]),
+            learning=LearningConfig.from_dict(data.get("learning", {})),
             database=DatabaseConfig.from_dict(data["database"]),
             logging=LoggingConfig.from_dict(data["logging"]),
             ui=UiConfig.from_dict(data["ui"]),

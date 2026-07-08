@@ -2,10 +2,11 @@
 MODULE: APP-001
 FILE: APP-001-001
 Module Name: Qt Application Bootstrapper
-Version: 2.7.0
-Purpose: Starts Sentinel AI with configured services, theme, welcome gate, market analysis, manual trading coordination, locked Auto Trade diagnostics, and delegated Trade Manager lifecycle orchestration.
+Version: 2.8.0
+Purpose: Starts Sentinel AI with configured services, theme, welcome gate, market analysis, manual trading coordination, locked Auto Trade diagnostics, delegated Trade Manager lifecycle orchestration, and learning-readiness review updates.
 Dependencies: sys, PySide6.QtWidgets, sentinel_ai.gui, sentinel_ai.market_data, sentinel_ai.models, sentinel_ai.services
 Change History:
+- 2.8.0: Added Stage 9 learning-readiness dashboard refresh and removed stray static decorators from GUI handler methods.
 - 2.7.0: Delegated Sentinel-owned trade lifecycle, ledger statistics, and maintenance execution to TradeManagerService for Stage 8 completion.
 - 2.6.0: Added Auto Trade diagnostics so blocked execution states are visible without unlocking Auto Trade.
 - 2.5.0: Locked Auto Trade for manual-mode stabilization and wired deduplicated prediction persistence.
@@ -221,8 +222,11 @@ class SentinelApplication:
         )
 
     def _refresh_dashboard_statistics(self) -> None:
+        """Refresh prediction and learning-readiness dashboard statistics."""
         statistics = self._context.prediction_repository.summary_statistics()
-        self._main_window.update_statistics_panel(statistics, "Statistical review pending sufficient closed trades")
+        learning_snapshot = self._context.learning_readiness_service.review()
+        statistics.update(learning_snapshot.dashboard_fields())
+        self._main_window.update_statistics_panel(statistics, learning_snapshot.status)
 
     def _update_auto_trade_diagnostics(self, diagnostic: AutoTradeDiagnostic | None = None) -> AutoTradeDiagnostic:
         """Evaluate and display the current Auto Trade readiness state."""
@@ -526,8 +530,17 @@ class SentinelApplication:
         self._latest_risk_reward_snapshot = risk_reward_snapshot
         self._main_window.update_risk_reward_status(risk_reward_snapshot)
         self._context.prediction_lifecycle_service.record_from_risk_reward_snapshot(risk_reward_snapshot)
+        self._refresh_learning_readiness_dashboard()
         self._update_auto_trade_diagnostics()
         return risk_reward_snapshot
+
+
+    def _refresh_learning_readiness_dashboard(self) -> None:
+        """Refresh prediction and learning-readiness fields without applying parameter changes."""
+        learning_snapshot = self._context.learning_readiness_service.review()
+        statistics = self._context.prediction_repository.summary_statistics()
+        statistics.update(learning_snapshot.dashboard_fields())
+        self._main_window.update_statistics_panel(statistics, learning_snapshot.status)
 
     def _update_position_monitoring(self) -> None:
         """Refresh MT5 open-position monitoring through the TradeManagerService."""
@@ -560,7 +573,8 @@ class SentinelApplication:
         daily_statistics = self._trade_manager.statistics_with_ledger_totals(daily_statistics)
         self._latest_position_snapshot = position_snapshot
         self._latest_daily_trade_statistics = daily_statistics
-        self._main_window.update_position_monitor_status(position_snapshot, daily_statistics)
+        learning_snapshot = self._context.learning_readiness_service.review()
+        self._main_window.update_position_monitor_status(position_snapshot, daily_statistics, learning_snapshot.dashboard_fields())
         self._update_auto_trade_diagnostics()
 
 
@@ -574,56 +588,6 @@ class SentinelApplication:
         """Delegate Sentinel-created trade registration to TradeManagerService."""
         self._trade_manager.register_sentinel_owned_trade(snapshot, result, source=source)
         self._sync_trade_manager_legacy_state()
-
-
-
-    @staticmethod
-
-
-
-
-
-
-
-
-
-
-
-    @staticmethod
-
-    @staticmethod
-
-
-
-    @staticmethod
-
-
-    @staticmethod
-
-    @staticmethod
-
-
-
-
-
-    @staticmethod
-
-    @staticmethod
-
-
-
-
-
-
-
-
-
-
-
-
-    @staticmethod
-
-    @staticmethod
 
     def _show_ledger_maintenance_tools(self) -> None:
         """Show guarded ledger maintenance actions for stale records and exports."""
@@ -678,11 +642,6 @@ class SentinelApplication:
         self._update_position_monitoring()
         QMessageBox.information(self._main_window, "Ledger Maintenance", result.message)
 
-
-
-
-    @staticmethod
-
     def _archive_stale_pending_records(self) -> None:
         """Archive stale pending records through TradeManagerService."""
         result = self._trade_manager.archive_stale_pending_records()
@@ -731,7 +690,6 @@ class SentinelApplication:
         else:
             QMessageBox.warning(self._main_window, "Ledger Maintenance", result.message)
 
-    @staticmethod
 
     def _handle_auto_trade_toggled(self, enabled: bool) -> None:
         """Enable or disable guarded auto-trade execution after explicit user confirmation."""

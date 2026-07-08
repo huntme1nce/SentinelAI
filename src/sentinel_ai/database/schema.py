@@ -2,10 +2,11 @@
 MODULE: DB-001
 FILE: DB-001-001
 Module Name: Database Schema
-Version: 0.1.0
-Purpose: Defines the permanent SQLite schema for Sentinel AI prediction storage and statistics foundations.
+Version: 0.2.0
+Purpose: Defines the permanent SQLite schema for Sentinel AI prediction storage, statistics foundations, and learning-readiness reviews.
 Dependencies: None
 Change History:
+- 0.2.0: Added learning_reviews table for Stage 9 statistical readiness snapshots.
 - 0.1.0: Added prediction, learning adjustment, and application metadata tables.
 """
 
@@ -54,6 +55,33 @@ SCHEMA_STATEMENTS = (
     CREATE INDEX IF NOT EXISTS idx_predictions_status
     ON predictions(status)
     """,
+
+    """
+    CREATE TABLE IF NOT EXISTS learning_reviews (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        review_uid TEXT NOT NULL UNIQUE,
+        generated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        status TEXT NOT NULL,
+        action TEXT NOT NULL,
+        sample_size INTEGER NOT NULL DEFAULT 0,
+        minimum_sample_size INTEGER NOT NULL DEFAULT 0,
+        wins INTEGER NOT NULL DEFAULT 0,
+        losses INTEGER NOT NULL DEFAULT 0,
+        breakeven INTEGER NOT NULL DEFAULT 0,
+        win_rate REAL NOT NULL DEFAULT 0,
+        loss_rate REAL NOT NULL DEFAULT 0,
+        average_confidence REAL NOT NULL DEFAULT 0,
+        average_risk_reward REAL NOT NULL DEFAULT 0,
+        review_window_days INTEGER NOT NULL DEFAULT 0,
+        ready_for_parameter_review INTEGER NOT NULL DEFAULT 0 CHECK(ready_for_parameter_review IN (0, 1)),
+        top_failure_pattern_json TEXT NOT NULL DEFAULT '{}',
+        metadata_json TEXT NOT NULL DEFAULT '{}'
+    )
+    """,
+    """
+    CREATE INDEX IF NOT EXISTS idx_learning_reviews_generated_at
+    ON learning_reviews(generated_at)
+    """,
     """
     CREATE TABLE IF NOT EXISTS learning_adjustments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,4 +98,4 @@ SCHEMA_STATEMENTS = (
     """,
 )
 
-SCHEMA_VERSION = "0.1.0"
+SCHEMA_VERSION = "0.2.0"

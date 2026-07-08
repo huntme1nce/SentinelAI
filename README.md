@@ -1,103 +1,148 @@
 # Sentinel AI
 
-## Version 2.7.0: Stage 8 Trade Manager Service Completion Build
+## Version 2.8.0: Stage 9 Learning Readiness Build
 
-This build completes the controlled build path through **Stage 8**. The key architectural improvement is that Sentinel-owned trade lifecycle handling is now owned by a dedicated `TradeManagerService`, not the GUI bootstrapper.
+This build completes the next controlled stage after the Stage 8 Trade Manager extraction.
 
-Auto Trade remains locked/dormant by default. This sprint does **not** unlock Auto Trade and does **not** change strategy rules.
+Stage 9 does **not** change strategy parameters automatically. It prepares reliable evidence for future statistical learning by reviewing closed prediction records and Sentinel ledger context.
 
-## Completed stages through Stage 8
-
-```text
-Stage 1: Foundation and Architecture                  Completed foundation
-Stage 2: Market Data and Chart Display                Completed foundation
-Stage 3: Analysis Engines                             Completed foundation
-Stage 4: Prediction Lifecycle                         Started and wired to trade lifecycle
-Stage 5: Manual Trade Lifecycle                       Service-managed and validation-ready
-Stage 6: Statistics / Ledger Verification             Service-managed and validation-ready
-Stage 7: Auto Trade Diagnostics                       Implemented, locked/dormant
-Stage 8: Trade Manager Refactor                       Completed in this build
-```
-
-## What changed in 2.7.0
+## Stage Status
 
 ```text
-TradeManagerService added
-Trade lifecycle logic moved out of app.py
-Sentinel-owned trade registration delegated to TradeManagerService
-Position lifecycle tracking delegated to TradeManagerService
-Ledger statistics and dashboard totals delegated to TradeManagerService
-Pending-close settlement delegated to TradeManagerService
-Repair Pending History delegated to TradeManagerService
-Archive stale pending delegated to TradeManagerService
-Export ledger delegated to TradeManagerService
-Guarded reset delegated to TradeManagerService
-Trade Manager service unit tests added
-Sprint validator updated for Stage 8
+Stage 1: Foundation                     Complete / stable foundation
+Stage 2: Market Data + Chart             Complete / functional
+Stage 3: Analysis Engines                Complete foundation
+Stage 4: Prediction Lifecycle            Foundation completed
+Stage 5: Manual Trade Lifecycle          Strengthened
+Stage 6: Statistics / Ledger             Strengthened
+Stage 7: Auto Trade Diagnostics          Complete, still locked
+Stage 8: Trade Manager Refactor          Complete
+Stage 9: Learning Readiness              Complete foundation
 ```
 
-## Stage 8 architecture result
+## What Stage 9 Adds
 
-`app.py` now coordinates UI, refresh events, manual confirmations, and Auto Trade diagnostics only. The service layer owns the Sentinel trade lifecycle:
+```text
+LearningReadinessService
+LearningRepository
+LearningReadinessSnapshot model
+LearningFailurePattern model
+LearningDatasetRow model
+learning_reviews SQLite table
+closed prediction dataset query
+learning-readiness dashboard rows
+formal learning-readiness unit tests
+```
+
+## Learning Philosophy
+
+Sentinel AI still follows the official rule:
+
+```text
+Learning is statistical.
+Learning is not emotional.
+No parameter should change because of one losing trade.
+```
+
+This build only prepares and summarizes evidence. It does **not** rewrite strategy rules, confidence rules, entry rules, TP/SL logic, or Auto Trade behavior.
+
+## New Dashboard Rows
+
+The Statistics panel can now show:
+
+```text
+Learning Status
+Learning Sample
+Learning Pattern
+Learning Action
+```
+
+Expected examples:
+
+```text
+Learning Status: COLLECTING_DATA
+Learning Sample: 4/30
+Learning Pattern: None yet
+Learning Action: NO_PARAMETER_CHANGE
+```
+
+or, after enough recurring closed losses are recorded:
+
+```text
+Learning Status: PATTERN_REVIEW_READY
+Learning Sample: 30/30
+Learning Pattern: BUY XAUUSDm M5, confidence 80-89, RR 2.0-2.99: 5/8 losses (62.50%).
+Learning Action: NO_PARAMETER_CHANGE
+```
+
+## Learning Config Safety Defaults
+
+```json
+"learning": {
+  "statistical_review_enabled": true,
+  "review_window_days": 30,
+  "minimum_closed_trades_for_review": 30,
+  "minimum_pattern_losses": 3,
+  "max_failure_patterns": 3,
+  "automatic_parameter_adjustment_enabled": false
+}
+```
+
+`automatic_parameter_adjustment_enabled` is intentionally locked to `false` for Stage 9.
+
+## Auto Trade Status
+
+Auto Trade remains locked/dormant.
+
+```text
+Auto Trade: LOCKED
+```
+
+This build does not unlock Auto Trade.
+
+## Guarded Auto Trade Diagnostics
+
+The dashboard still supports:
+
+```text
+LOCKED
+DISABLED
+WAITING
+BLOCKED
+ARMED
+ORDER_SENT
+ORDER_FAILED
+```
+
+The purpose is still diagnosis only until manual-mode lifecycle results are verified.
+
+## Trade Manager
+
+Trade lifecycle orchestration remains delegated to:
 
 ```text
 TradeManagerService
-├─ register_sentinel_owned_trade
-├─ sync_sentinel_owned_position_ticket
-├─ sentinel_owned_daily_statistics
-├─ track_position_lifecycle
-├─ statistics_with_ledger_totals
-├─ repair_pending_history_records
-├─ archive_stale_pending_records
-├─ export_sentinel_ledger
-└─ reset_test_ledger_guarded
 ```
 
-## Current safety default
+The GUI controller should not own ledger settlement, pending-history repair, or prediction-result closure logic.
 
-```json
-"auto_trade_enabled": false,
-"auto_trade_locked": true,
-"one_trade_at_a_time": true,
-"minimum_confidence": 75.0,
-"default_risk_reward": 2.0
+## Validation
+
+Run:
+
+```powershell
+cd D:\projects\sentinelai
+.\.venv\Scripts\Activate.ps1
+$env:PYTHONPATH="src"
+python scripts\validate_sprint.py
 ```
 
-## Current build stage
-
-Sentinel AI is now through:
+Expected validator result includes:
 
 ```text
-Stage 8: Trade Manager Refactor
+Stage 9 learning readiness ready
+formal tests ready
 ```
-
-The next major stage should be **Stage 9: Learning Engine readiness**, but only after live demo/manual-mode results are verified.
-
-## Manual-mode flow to verify
-
-```text
-Prediction generated
-Prediction recorded
-Manual trade placed
-Trade active
-Trade monitored by TradeManagerService
-Trade closed
-Result resolved as WIN / LOSS / BREAKEVEN
-Ledger updated by TradeManagerService
-Dashboard updated
-Linked prediction closed
-```
-
-## Ledger Tools
-
-```text
-Repair Pending History
-Archive Stale Pending
-Export Ledger
-Reset Test Ledger
-```
-
-Reset remains blocked while an active Sentinel trade is open.
 
 ## Run
 
@@ -105,18 +150,9 @@ Reset remains blocked while an active Sentinel trade is open.
 cd D:\projects\sentinelai
 .\.venv\Scripts\Activate.ps1
 $env:PYTHONPATH="src"
-python scripts\validate_sprint.py
 python -m sentinel_ai.main
-```
-
-## Validation
-
-Expected validator result includes:
-
-```text
-Stage 8 Trade Manager service ready
 ```
 
 ## Testing Reminder
 
-Use demo first. Auto Trade stays locked by default in this build.
+Use demo first. Manual-mode lifecycle validation is still required before any future Auto Trade unlock sprint.

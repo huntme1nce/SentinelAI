@@ -3,8 +3,8 @@
     "module_id": "CFG-003",
     "file_id": "CFG-003-001",
     "module_name": "Default Configuration Resource",
-    "version": "2.7.0",
-    "purpose": "Provides packaged default Sentinel AI configuration values for Stage 8 Trade Manager service completion build.",
+    "version": "2.8.0",
+    "purpose": "Provides packaged default Sentinel AI configuration values for Stage 9 learning-readiness build.",
     "change_history": [
       "0.1.0: Added packaged defaults for Sprint 1 foundation.",
       "0.2.0: Added MT5 connection defaults.",
@@ -72,12 +72,13 @@
       "2.4.0: Added guarded auto-trade execution engine, default OFF, confirmation-gated, one-trade-at-a-time.",
       "2.5.0: Locked Auto Trade by default and added prediction persistence stabilization.",
       "2.6.0: Added Auto Trade diagnostics build version while keeping Auto Trade locked by default.",
-      "2.7.0: Added Stage 8 Trade Manager service completion build version while keeping Auto Trade locked by default."
+      "2.7.0: Added Stage 8 Trade Manager service completion build version while keeping Auto Trade locked by default.",
+      "2.8.0: Added learning-readiness review defaults while keeping automatic parameter adjustment disabled."
     ]
   },
   "application": {
     "name": "Sentinel AI",
-    "version": "2.7.0",
+    "version": "2.8.0",
     "environment": "production"
   },
   "trading": {
@@ -223,5 +224,13 @@
     "order_comment": "SentinelAI manual",
     "order_filling": "AUTO",
     "one_position_per_symbol": true
+  },
+  "learning": {
+    "statistical_review_enabled": true,
+    "review_window_days": 30,
+    "minimum_closed_trades_for_review": 30,
+    "minimum_pattern_losses": 3,
+    "max_failure_patterns": 3,
+    "automatic_parameter_adjustment_enabled": false
   }
 }
