@@ -2,10 +2,14 @@
 MODULE: GUI-003
 FILE: GUI-003-003
 Module Name: Statistics Panel
-Version: 2.8.0
-Purpose: Displays persistent prediction statistics and Auto Trade diagnostics in the bottom-right dashboard area.
+Version: 2.16.0
+Purpose: Displays persistent prediction statistics, open-trade health, progress ratios, pressure/risk alerts, and Auto Trade diagnostics in the bottom-right dashboard area.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets
 Change History:
+- 2.16.0: Added Trade Health row for display-only active-trade interpretation.
+- 2.15.0: Added TP Progress, SL Risk, and Route State rows for display-only open Sentinel trade monitoring.
+- 2.14.0: Added Risk Alert row for display-only open Sentinel trade proximity monitoring.
+- 2.13.0: Added Trade Pressure row for open Sentinel trade monitoring.
 - 2.8.0: Added compact learning-readiness rows for Stage 9 evidence review.
 - 2.6.0: Added Auto Trade status and reason rows to expose execution blockers.
 - 2.4.0: Preserved simplified dashboard for guarded auto-trade completion build.
@@ -83,6 +87,12 @@ class StatisticsPanel(QFrame):
             "Last Close Type",
             "Active Position",
             "Open P/L",
+            "Trade Pressure",
+            "Risk Alert",
+            "TP Progress",
+            "SL Risk",
+            "Route State",
+            "Trade Health",
             "Position Ticket",
             "Protection Status",
             "Ledger Warning",
@@ -138,10 +148,22 @@ class StatisticsPanel(QFrame):
         ticket: str,
         protection_status: str,
         learning_status: str,
+        trade_pressure: str = "-",
+        risk_alert: str = "-",
+        take_profit_progress: str = "-",
+        stop_loss_risk: str = "-",
+        route_state: str = "-",
+        trade_health: str = "-",
     ) -> None:
-        """Update active position monitoring fields."""
+        """Update active position monitoring and display-only health/progress-ratio fields."""
         self._fields["Active Position"].setText(active_position)
         self._fields["Open P/L"].setText(open_profit_loss)
+        self._fields["Trade Pressure"].setText(trade_pressure or "-")
+        self._fields["Risk Alert"].setText(risk_alert or "-")
+        self._fields["TP Progress"].setText(take_profit_progress or "-")
+        self._fields["SL Risk"].setText(stop_loss_risk or "-")
+        self._fields["Route State"].setText(route_state or "-")
+        self._fields["Trade Health"].setText(trade_health or "-")
         self._fields["Position Ticket"].setText(ticket)
         self._fields["Protection Status"].setText(protection_status)
         # Learning status is kept in the status bar/backend diagnostics to keep the main dashboard clean.

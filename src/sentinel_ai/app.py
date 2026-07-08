@@ -2,10 +2,13 @@
 MODULE: APP-001
 FILE: APP-001-001
 Module Name: Qt Application Bootstrapper
-Version: 2.8.0
+Version: 2.12.0
 Purpose: Starts Sentinel AI with configured services, theme, welcome gate, market analysis, manual trading coordination, locked Auto Trade diagnostics, delegated Trade Manager lifecycle orchestration, and learning-readiness review updates.
 Dependencies: sys, PySide6.QtWidgets, sentinel_ai.gui, sentinel_ai.market_data, sentinel_ai.models, sentinel_ai.services
 Change History:
+- 2.12.0: Preserved app orchestration while Active Trade panel progress is rendered in the GUI layer.
+- 2.10.0: Preserved app orchestration while the active-trade panel gains a summary card.
+- 2.9.0: Added GUI clarity milestone metadata for active-trade panel state separation.
 - 2.8.0: Added Stage 9 learning-readiness dashboard refresh and removed stray static decorators from GUI handler methods.
 - 2.7.0: Delegated Sentinel-owned trade lifecycle, ledger statistics, and maintenance execution to TradeManagerService for Stage 8 completion.
 - 2.6.0: Added Auto Trade diagnostics so blocked execution states are visible without unlocking Auto Trade.

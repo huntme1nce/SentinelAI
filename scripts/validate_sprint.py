@@ -2,10 +2,18 @@
 MODULE: OPS-001
 FILE: OPS-001-001
 Module Name: Sprint Validator
-Version: 2.7.0
-Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, analysis engines, locked Auto Trade, prediction persistence, Auto Trade diagnostics, Trade Manager service extraction, and formal tests.
+Version: 2.16.0
+Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, analysis engines, locked Auto Trade, prediction persistence, Auto Trade diagnostics, Trade Manager service extraction, learning readiness, active-trade panel clarity, active-trade summary card, closed-trade result panel, active-trade progress summary, active-trade pressure visibility, active-trade risk alert visibility, active-trade progress ratio visibility, active-trade health interpretation, and formal tests.
 Dependencies: compileall, datetime, json, logging, pathlib, sys, pandas
 Change History:
+- 2.16.0: Added validation for display-only active-trade health interpretation visibility.
+- 2.15.0: Added validation for display-only active-trade TP progress, SL risk, and route-state visibility.
+- 2.14.0: Added validation for display-only active-trade risk alert visibility during open Sentinel trades.
+- 2.13.0: Added validation for active-trade pressure visibility during open Sentinel trades.
+- 2.12.0: Added validation for active-trade progress summary during open Sentinel trades.
+- 2.11.0: Added validation for verified closed-trade result panel state.
+- 2.10.0: Added validation for active-trade summary-card GUI refinement.
+- 2.9.0: Added validation for active-trade panel GUI state separation.
 - 2.7.0: Added validation for Stage 8 TradeManagerService extraction and app delegation.
 - 2.6.0: Added validation for Auto Trade diagnostics service, dashboard routing, prediction lifecycle service, and formal unit tests.
 - 2.4.0: Added validation for guarded auto-trade execution engine and toolbar enablement.
@@ -127,6 +135,11 @@ def main() -> int:
         project_root / "tests" / "test_prediction_lifecycle_service.py",
         project_root / "tests" / "test_trade_manager_service.py",
         project_root / "tests" / "test_learning_readiness_service.py",
+        project_root / "tests" / "test_prediction_panel_state.py",
+        project_root / "tests" / "test_active_trade_progress_summary.py",
+        project_root / "tests" / "test_active_trade_pressure_visibility.py",
+        project_root / "tests" / "test_active_trade_risk_alert_visibility.py",
+        project_root / "tests" / "test_active_trade_progress_ratio_visibility.py",
         project_root / "SentinelAI.spec",
         project_root / "requirements.txt",
     ]
@@ -341,8 +354,8 @@ def main() -> int:
     if "M5" not in Mt5TimeframeMapper.SUPPORTED_TIMEFRAMES:
         print("MT5 timeframe mapper validation failed.", file=sys.stderr)
         return 1
-    if config.application.version != "2.8.0":
-        print("Application version must be 2.8.0 for Sprint 2.8 Stage 9 Learning Readiness build.", file=sys.stderr)
+    if config.application.version != "2.16.0":
+        print("Application version must be 2.16.0 for Sprint 2.16 Active Trade Health Interpretation build.", file=sys.stderr)
         return 1
     if not config.trading.auto_trade_locked:
         print("Auto Trade must remain locked for Sprint 2.8 Stage 9 Learning Readiness build.", file=sys.stderr)
@@ -899,8 +912,8 @@ def main() -> int:
     if "self._has_active_position_lock = False" not in main_window_resource:
         print("Startup active-position lock initialization validation failed.", file=sys.stderr)
         return 1
-    if "ACTIVE_{position_snapshot.direction}_POSITION" not in main_window_resource:
-        print("Active position prediction-priority validation failed.", file=sys.stderr)
+    if "update_active_trade" not in main_window_resource or "{position_snapshot.direction} POSITION" not in main_window_resource:
+        print("Active position panel-priority validation failed.", file=sys.stderr)
         return 1
     if "set_active_position_snapshot" not in main_window_resource:
         print("Active position chart-lock routing validation failed.", file=sys.stderr)
@@ -1166,6 +1179,70 @@ def main() -> int:
         print("Learning readiness model validation failed.", file=sys.stderr)
         return 1
 
+    prediction_panel_resource = (source_root / "sentinel_ai" / "gui" / "widgets" / "prediction_panel.py").read_text(encoding="utf-8")
+    main_window_resource = (source_root / "sentinel_ai" / "gui" / "main_window.py").read_text(encoding="utf-8")
+    if "def update_active_trade" not in prediction_panel_resource or "Active Trade" not in prediction_panel_resource:
+        print("Active-trade prediction panel mode validation failed.", file=sys.stderr)
+        return 1
+    if "_summary_label" not in prediction_panel_resource or "ActiveTradeSummary" not in prediction_panel_resource:
+        print("Active-trade summary-card validation failed.", file=sys.stderr)
+        return 1
+    if "outer_layout.setAlignment(Qt.AlignTop)" not in prediction_panel_resource:
+        print("Active-trade top-aligned layout validation failed.", file=sys.stderr)
+        return 1
+    if "update_active_trade" not in main_window_resource or "ACTIVE_" in main_window_resource:
+        print("Main-window active-trade panel routing validation failed.", file=sys.stderr)
+        return 1
+    if "current_price" not in prediction_panel_resource or "Distance to TP" not in prediction_panel_resource or "closer_target" not in prediction_panel_resource:
+        print("Active-trade progress summary validation failed.", file=sys.stderr)
+        return 1
+    if "Trade Pressure" not in prediction_panel_resource or "trade_pressure" not in prediction_panel_resource:
+        print("Active-trade pressure summary validation failed.", file=sys.stderr)
+        return 1
+    statistics_panel_resource = (source_root / "sentinel_ai" / "gui" / "widgets" / "statistics_panel.py").read_text(encoding="utf-8")
+    if "Trade Pressure" not in statistics_panel_resource or "trade_pressure" not in statistics_panel_resource:
+        print("Statistics trade-pressure row validation failed.", file=sys.stderr)
+        return 1
+    if "Risk Alert" not in prediction_panel_resource or "risk_alert" not in prediction_panel_resource:
+        print("Active-trade risk alert summary validation failed.", file=sys.stderr)
+        return 1
+    if "Risk Alert" not in statistics_panel_resource or "risk_alert" not in statistics_panel_resource:
+        print("Statistics risk-alert row validation failed.", file=sys.stderr)
+        return 1
+    if "_resolve_trade_risk_alert" not in main_window_resource or "SL_DANGER_ZONE" not in main_window_resource or "TP_APPROACH_ZONE" not in main_window_resource:
+        print("Main-window active-trade risk alert routing validation failed.", file=sys.stderr)
+        return 1
+    if "TP Progress" not in prediction_panel_resource or "take_profit_progress" not in prediction_panel_resource or "SL Risk" not in prediction_panel_resource or "route_state" not in prediction_panel_resource:
+        print("Active-trade progress ratio summary validation failed.", file=sys.stderr)
+        return 1
+    if "TP Progress" not in statistics_panel_resource or "SL Risk" not in statistics_panel_resource or "Route State" not in statistics_panel_resource:
+        print("Statistics progress-ratio row validation failed.", file=sys.stderr)
+        return 1
+    if "Trade Health" not in prediction_panel_resource or "trade_health" not in prediction_panel_resource:
+        print("Active-trade health summary validation failed.", file=sys.stderr)
+        return 1
+    if "Trade Health" not in statistics_panel_resource or "trade_health" not in statistics_panel_resource:
+        print("Statistics trade-health row validation failed.", file=sys.stderr)
+        return 1
+    if "_resolve_trade_health" not in main_window_resource or "HEALTHY_PROGRESS" not in main_window_resource or "HIGH_RISK_NEAR_SL" not in main_window_resource:
+        print("Main-window active-trade health interpretation validation failed.", file=sys.stderr)
+        return 1
+    if "_build_active_trade_progress_ratio" not in main_window_resource or "_resolve_trade_progress_ratio" not in main_window_resource or "PROFIT_PROGRESS" not in main_window_resource or "DRAWDOWN_RISK" not in main_window_resource:
+        print("Main-window active-trade progress ratio routing validation failed.", file=sys.stderr)
+        return 1
+    if "_build_active_trade_progress" not in main_window_resource or "_resolve_closer_trade_target" not in main_window_resource or "_resolve_trade_pressure" not in main_window_resource:
+        print("Main-window active-trade progress routing validation failed.", file=sys.stderr)
+        return 1
+    if "def update_trade_result" not in prediction_panel_resource or "Trade Result" not in prediction_panel_resource:
+        print("Trade-result panel mode validation failed.", file=sys.stderr)
+        return 1
+    if "_build_trade_result_summary" not in prediction_panel_resource or "Closed Verified" not in prediction_panel_resource:
+        print("Trade-result summary-card validation failed.", file=sys.stderr)
+        return 1
+    if "update_trade_result" not in main_window_resource or "last_closed_result" not in main_window_resource:
+        print("Main-window trade-result routing validation failed.", file=sys.stderr)
+        return 1
+
     try:
         json.dumps(chart_payload)
     except TypeError as error:
@@ -1189,7 +1266,7 @@ def main() -> int:
         "Sprint validation passed: source compiled, resources verified, config loaded, "
         "MT5 mapping available, market feed conversion validated, chart assets ready, "
         "one-second live refresh configured, chart navigation ready, symbol management ready, "
-        "market structure engine ready, support/resistance engine ready, liquidity engine ready, imbalance engine ready, momentum engine ready, confidence engine ready, entry validation engine ready, risk/reward engine ready, active overlay range boxing ready, chart right-scroll ready, true consolidation filter ready, rendered-range status ready, single-canvas repaint path ready, trade plan overlay ready, manual review gate ready, polished manual order modal ready, manual MT5 order placement ready, adaptive filling-mode fallback ready, position monitoring ready, daily trade statistics ready, active trade chart lock ready, position-priority display ready, startup lock initialization ready, missing TP chart-scale guard ready, active protection warning ready, closed-trade lifecycle tracking ready, last result dashboard ready, active header priority ready, countdown removed ready, MT5 history fallback ready, close type dashboard ready, Sentinel-owned tracking ready, outside MT5 trade suppression ready, Sentinel journal persistence ready, Sentinel magic/comment recovery ready, persistent Sentinel trade ledger ready, multi-ticket app statistics ready, active Sentinel trade recovery ready, ledger outcome persistence ready, ledger performance dashboard ready, open/closed ledger dashboard ready, trade result verification status ready, active-ticket close guard ready, strict DEAL_ENTRY_OUT filtering ready, false close suppression ready, pending close settlement ready, lifecycle diagnostics ready, pending close age diagnostics ready, lifecycle result-status binding hotfix ready, robust close resolver ready, resolver audit diagnostics ready, MT5 resolver binding hotfix ready, app resolver helper binding hotfix ready, final stabilization dashboard ready, current trade priority ready, stale pending backlog audit ready, pending close/backlog separation ready, ledger maintenance tools ready, stale archive/export/reset ready, lenient TP close resolver ready, simplified dashboard ready, pending history repair ready, manual-mode completion build ready, guarded auto-trade completion ready, auto-trade lock ready, prediction persistence ready, Auto Trade diagnostics ready, Stage 8 Trade Manager service ready, Stage 9 learning readiness ready, formal tests ready."
+        "market structure engine ready, support/resistance engine ready, liquidity engine ready, imbalance engine ready, momentum engine ready, confidence engine ready, entry validation engine ready, risk/reward engine ready, active overlay range boxing ready, chart right-scroll ready, true consolidation filter ready, rendered-range status ready, single-canvas repaint path ready, trade plan overlay ready, manual review gate ready, polished manual order modal ready, manual MT5 order placement ready, adaptive filling-mode fallback ready, position monitoring ready, daily trade statistics ready, active trade chart lock ready, position-priority display ready, startup lock initialization ready, missing TP chart-scale guard ready, active protection warning ready, closed-trade lifecycle tracking ready, last result dashboard ready, active header priority ready, countdown removed ready, MT5 history fallback ready, close type dashboard ready, Sentinel-owned tracking ready, outside MT5 trade suppression ready, Sentinel journal persistence ready, Sentinel magic/comment recovery ready, persistent Sentinel trade ledger ready, multi-ticket app statistics ready, active Sentinel trade recovery ready, ledger outcome persistence ready, ledger performance dashboard ready, open/closed ledger dashboard ready, trade result verification status ready, active-ticket close guard ready, strict DEAL_ENTRY_OUT filtering ready, false close suppression ready, pending close settlement ready, lifecycle diagnostics ready, pending close age diagnostics ready, lifecycle result-status binding hotfix ready, robust close resolver ready, resolver audit diagnostics ready, MT5 resolver binding hotfix ready, app resolver helper binding hotfix ready, final stabilization dashboard ready, current trade priority ready, stale pending backlog audit ready, pending close/backlog separation ready, ledger maintenance tools ready, stale archive/export/reset ready, lenient TP close resolver ready, simplified dashboard ready, pending history repair ready, manual-mode completion build ready, guarded auto-trade completion ready, auto-trade lock ready, prediction persistence ready, Auto Trade diagnostics ready, Stage 8 Trade Manager service ready, Stage 9 learning readiness ready, active-trade panel clarity ready, active-trade summary card ready, closed-trade result panel ready, active-trade progress summary ready, active-trade pressure visibility ready, active-trade risk alert visibility ready, active-trade progress ratio visibility ready, active-trade health interpretation ready, formal tests ready."
     )
     return 0
 

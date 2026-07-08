@@ -2,10 +2,17 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-Version: 2.8.0
-Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, market-structure, analysis, or Auto Trade diagnostics logic.
+Version: 2.16.0
+Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, market-structure, analysis, Auto Trade diagnostics, trade-lifecycle, result-settlement, or trade-risk decision logic.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models
 Change History:
+- 2.15.0: Routed display-only TP progress, SL risk, and route-state values into active-trade panels.
+- 2.14.0: Added display-only active-trade risk alert routing for TP approach and SL danger visibility.
+- 2.13.0: Added display-only active-trade pressure routing for open Sentinel trades.
+- 2.12.0: Routed current price, TP/SL distance, and nearest-target progress into Active Trade panel state.
+- 2.11.0: Routed verified closed Sentinel trade results to a dedicated Trade Result panel state.
+- 2.10.0: Preserved active-trade routing for the summary-card panel refinement.
+- 2.9.0: Routed open-position display to active-trade panel mode for clearer GUI state separation.
 - 2.8.0: Preserved GUI shell while statistics panel now displays learning-readiness fields.
 - 2.6.0: Routed Auto Trade diagnostics to the statistics dashboard.
 - 2.5.0: Added explicit Auto Trade locked-state UI guard for manual-mode stabilization.
@@ -477,14 +484,31 @@ class MainWindow(QMainWindow):
             learning_status = position_snapshot.message
             self.set_manual_trade_review_enabled(False)
             self.statusBar().showMessage(position_snapshot.message)
-            self._prediction_panel.update_prediction(
-                direction=f"ACTIVE_{position_snapshot.direction}_POSITION",
-                confidence="Position Open",
+            active_trade_progress = self._build_active_trade_progress(position_snapshot)
+            trade_pressure = active_trade_progress["trade_pressure"]
+            risk_alert = active_trade_progress["risk_alert"]
+            take_profit_progress = active_trade_progress["take_profit_progress"]
+            stop_loss_risk = active_trade_progress["stop_loss_risk"]
+            route_state = active_trade_progress["route_state"]
+            trade_health = active_trade_progress["trade_health"]
+            self._prediction_panel.update_active_trade(
+                direction=f"{position_snapshot.direction} POSITION",
+                status="Position Open",
                 timeframe=self._config.trading.default_timeframe,
                 reason=position_snapshot.protection_status + " | " + position_snapshot.message,
                 take_profit="Not Set" if position_snapshot.take_profit is None else f"{position_snapshot.take_profit:.2f}",
                 stop_loss="Not Set" if position_snapshot.stop_loss is None else f"{position_snapshot.stop_loss:.2f}",
-                risk_reward=f"Open P/L {position_snapshot.profit:.2f}",
+                open_profit_loss=f"Open P/L {position_snapshot.profit:.2f}",
+                current_price=active_trade_progress["current_price"],
+                distance_to_take_profit=active_trade_progress["distance_to_take_profit"],
+                distance_to_stop_loss=active_trade_progress["distance_to_stop_loss"],
+                closer_target=active_trade_progress["closer_target"],
+                trade_pressure=active_trade_progress["trade_pressure"],
+                risk_alert=active_trade_progress["risk_alert"],
+                take_profit_progress=active_trade_progress["take_profit_progress"],
+                stop_loss_risk=active_trade_progress["stop_loss_risk"],
+                route_state=active_trade_progress["route_state"],
+                trade_health=active_trade_progress["trade_health"],
             )
             self._chart_panel.set_active_position_snapshot(position_snapshot)
         else:
@@ -492,11 +516,18 @@ class MainWindow(QMainWindow):
             open_pl = "0.00"
             ticket = "-"
             protection_status = "No active position"
+            trade_pressure = "None"
+            risk_alert = "None"
+            take_profit_progress = "-"
+            stop_loss_risk = "-"
+            route_state = "NO_TRADE"
+            trade_health = "NO_TRADE"
             learning_status = position_snapshot.message
             self._chart_panel.set_active_position_snapshot(position_snapshot)
 
         if daily_statistics_snapshot is not None:
             last_result = "-"
+            last_profit = "-"
             if daily_statistics_snapshot.last_closed_result != "NONE":
                 last_profit = (
                     f"{daily_statistics_snapshot.last_closed_profit:.2f}"
@@ -538,6 +569,23 @@ class MainWindow(QMainWindow):
             self._statistics_panel.update_statistics(statistics, daily_statistics_snapshot.message)
             if not position_snapshot.has_open_position:
                 learning_status = daily_statistics_snapshot.message
+                if daily_statistics_snapshot.last_closed_result != "NONE":
+                    closed_at = (
+                        daily_statistics_snapshot.last_closed_at.strftime("%Y-%m-%d %H:%M")
+                        if daily_statistics_snapshot.last_closed_at is not None
+                        else "-"
+                    )
+                    close_type = daily_statistics_snapshot.last_close_type or "Close verified"
+                    result_reason = daily_statistics_snapshot.result_status or daily_statistics_snapshot.message
+                    self._prediction_panel.update_trade_result(
+                        result=daily_statistics_snapshot.last_closed_result,
+                        close_type=close_type,
+                        timeframe=self._config.trading.default_timeframe,
+                        reason=result_reason,
+                        profit_loss=f"P/L {last_profit}",
+                        ticket=str(daily_statistics_snapshot.last_closed_ticket or "-"),
+                        closed_at=closed_at,
+                    )
 
         self._statistics_panel.update_position_monitor(
             active_position=active_position,
@@ -545,7 +593,232 @@ class MainWindow(QMainWindow):
             ticket=ticket,
             protection_status=protection_status,
             learning_status=learning_status,
+            trade_pressure=trade_pressure,
+            risk_alert=risk_alert,
+            take_profit_progress=take_profit_progress,
+            stop_loss_risk=stop_loss_risk,
+            route_state=route_state,
+            trade_health=trade_health,
         )
+
+    @staticmethod
+    def _build_active_trade_progress(position_snapshot: PositionMonitorSnapshot) -> dict[str, str]:
+        """Build display-only active-trade progress values from an open position snapshot."""
+        current_price = position_snapshot.current_price
+        if current_price is None:
+            return {
+                "current_price": "-",
+                "distance_to_take_profit": "-",
+                "distance_to_stop_loss": "-",
+                "closer_target": "UNKNOWN",
+                "trade_pressure": "UNKNOWN",
+                "risk_alert": "UNKNOWN_RISK",
+                "take_profit_progress": "-",
+                "stop_loss_risk": "-",
+                "route_state": "UNKNOWN_ROUTE",
+                "trade_health": "UNKNOWN_HEALTH",
+            }
+
+        distance_to_take_profit = MainWindow._format_price_distance(current_price, position_snapshot.take_profit)
+        distance_to_stop_loss = MainWindow._format_price_distance(current_price, position_snapshot.stop_loss)
+        closer_target = MainWindow._resolve_closer_trade_target(
+            current_price=current_price,
+            take_profit=position_snapshot.take_profit,
+            stop_loss=position_snapshot.stop_loss,
+        )
+        trade_pressure = MainWindow._resolve_trade_pressure(closer_target)
+        risk_alert = MainWindow._resolve_trade_risk_alert(
+            current_price=current_price,
+            take_profit=position_snapshot.take_profit,
+            stop_loss=position_snapshot.stop_loss,
+            closer_target=closer_target,
+        )
+        progress_ratio = MainWindow._build_active_trade_progress_ratio(position_snapshot)
+        trade_health = MainWindow._resolve_trade_health(
+            route_state=progress_ratio["route_state"],
+            risk_alert=risk_alert,
+            trade_pressure=trade_pressure,
+            take_profit_progress=progress_ratio["take_profit_progress"],
+            stop_loss_risk=progress_ratio["stop_loss_risk"],
+        )
+        return {
+            "current_price": f"{current_price:.2f}",
+            "distance_to_take_profit": distance_to_take_profit,
+            "distance_to_stop_loss": distance_to_stop_loss,
+            "closer_target": closer_target,
+            "trade_pressure": trade_pressure,
+            "risk_alert": risk_alert,
+            "take_profit_progress": progress_ratio["take_profit_progress"],
+            "stop_loss_risk": progress_ratio["stop_loss_risk"],
+            "route_state": progress_ratio["route_state"],
+            "trade_health": trade_health,
+        }
+
+    @staticmethod
+    def _format_price_distance(current_price: float | None, target_price: float | None) -> str:
+        """Return an absolute price-distance label for display-only trade progress."""
+        if current_price is None or target_price is None:
+            return "Not Set"
+        return f"{abs(target_price - current_price):.2f}"
+
+    @staticmethod
+    def _resolve_closer_trade_target(
+        current_price: float | None,
+        take_profit: float | None,
+        stop_loss: float | None,
+    ) -> str:
+        """Return whether the current price is closer to TP, SL, both, or unknown."""
+        if current_price is None or (take_profit is None and stop_loss is None):
+            return "UNKNOWN"
+        if take_profit is None:
+            return "SL"
+        if stop_loss is None:
+            return "TP"
+        distance_to_take_profit = abs(take_profit - current_price)
+        distance_to_stop_loss = abs(stop_loss - current_price)
+        if abs(distance_to_take_profit - distance_to_stop_loss) < 1e-9:
+            return "EQUAL"
+        return "TP" if distance_to_take_profit < distance_to_stop_loss else "SL"
+
+    @staticmethod
+    def _resolve_trade_pressure(closer_target: str) -> str:
+        """Return a display-only pressure state derived from the nearest open-trade target."""
+        normalized_target = str(closer_target).upper().strip()
+        if normalized_target == "TP":
+            return "TP_PRESSURE"
+        if normalized_target == "SL":
+            return "SL_PRESSURE"
+        if normalized_target == "EQUAL":
+            return "NEUTRAL_PRESSURE"
+        return "UNKNOWN_PRESSURE"
+
+    @staticmethod
+    def _resolve_trade_risk_alert(
+        current_price: float | None,
+        take_profit: float | None,
+        stop_loss: float | None,
+        closer_target: str,
+    ) -> str:
+        """Return a display-only risk proximity alert without changing trade management."""
+        if current_price is None or take_profit is None or stop_loss is None:
+            return "UNKNOWN_RISK"
+        distance_to_take_profit = abs(take_profit - current_price)
+        distance_to_stop_loss = abs(stop_loss - current_price)
+        total_distance = distance_to_take_profit + distance_to_stop_loss
+        if total_distance <= 0:
+            return "UNKNOWN_RISK"
+        proximity_ratio = min(distance_to_take_profit, distance_to_stop_loss) / total_distance
+        normalized_target = str(closer_target).upper().strip()
+        if normalized_target == "SL" and proximity_ratio <= 0.25:
+            return "SL_DANGER_ZONE"
+        if normalized_target == "TP" and proximity_ratio <= 0.25:
+            return "TP_APPROACH_ZONE"
+        if normalized_target == "EQUAL":
+            return "BALANCED_ZONE"
+        return "NEUTRAL_ZONE"
+
+    @staticmethod
+    def _build_active_trade_progress_ratio(position_snapshot: PositionMonitorSnapshot) -> dict[str, str]:
+        """Build display-only TP progress, SL risk, and route-state labels for an open position."""
+        take_profit_progress, stop_loss_risk, route_state = MainWindow._resolve_trade_progress_ratio(
+            direction=position_snapshot.direction,
+            open_price=position_snapshot.open_price,
+            current_price=position_snapshot.current_price,
+            take_profit=position_snapshot.take_profit,
+            stop_loss=position_snapshot.stop_loss,
+        )
+        return {
+            "take_profit_progress": take_profit_progress,
+            "stop_loss_risk": stop_loss_risk,
+            "route_state": route_state,
+        }
+
+    @staticmethod
+    def _resolve_trade_progress_ratio(
+        direction: str,
+        open_price: float | None,
+        current_price: float | None,
+        take_profit: float | None,
+        stop_loss: float | None,
+    ) -> tuple[str, str, str]:
+        """Resolve display-only progress percentages without changing trade management."""
+        if open_price is None or current_price is None or take_profit is None or stop_loss is None:
+            return "-", "-", "UNKNOWN_ROUTE"
+
+        normalized_direction = str(direction).upper().strip()
+        if normalized_direction == "BUY":
+            profit_move = current_price - open_price
+            loss_move = open_price - current_price
+            target_distance = take_profit - open_price
+            stop_distance = open_price - stop_loss
+        elif normalized_direction == "SELL":
+            profit_move = open_price - current_price
+            loss_move = current_price - open_price
+            target_distance = open_price - take_profit
+            stop_distance = stop_loss - open_price
+        else:
+            return "-", "-", "UNKNOWN_ROUTE"
+
+        take_profit_progress_value = MainWindow._clamped_percentage(profit_move, target_distance)
+        stop_loss_risk_value = MainWindow._clamped_percentage(loss_move, stop_distance)
+
+        if profit_move > 0:
+            route_state = "PROFIT_PROGRESS"
+        elif loss_move > 0:
+            route_state = "DRAWDOWN_RISK"
+        else:
+            route_state = "ENTRY_ZONE"
+
+        return (
+            f"{take_profit_progress_value:.2f}%",
+            f"{stop_loss_risk_value:.2f}%",
+            route_state,
+        )
+
+    @staticmethod
+    def _clamped_percentage(value: float, total: float) -> float:
+        """Return a 0 to 100 display percentage for an open-trade route segment."""
+        if total <= 0 or value <= 0:
+            return 0.0
+        return max(0.0, min(100.0, (value / total) * 100.0))
+
+
+    @staticmethod
+    def _resolve_trade_health(
+        route_state: str,
+        risk_alert: str,
+        trade_pressure: str,
+        take_profit_progress: str,
+        stop_loss_risk: str,
+    ) -> str:
+        """Return a display-only health interpretation for the open Sentinel trade."""
+        normalized_route = str(route_state).upper().strip()
+        normalized_risk_alert = str(risk_alert).upper().strip()
+        normalized_pressure = str(trade_pressure).upper().strip()
+        take_profit_percent = MainWindow._parse_percentage_label(take_profit_progress)
+        stop_loss_percent = MainWindow._parse_percentage_label(stop_loss_risk)
+
+        if normalized_risk_alert == "SL_DANGER_ZONE" or stop_loss_percent >= 75.0:
+            return "HIGH_RISK_NEAR_SL"
+        if normalized_risk_alert == "TP_APPROACH_ZONE" or take_profit_percent >= 75.0:
+            return "STRONG_PROGRESS_NEAR_TP"
+        if normalized_route == "PROFIT_PROGRESS" and normalized_pressure == "TP_PRESSURE":
+            return "HEALTHY_PROGRESS"
+        if normalized_route == "DRAWDOWN_RISK" and normalized_pressure == "SL_PRESSURE":
+            return "WATCH_DRAWDOWN"
+        if normalized_route == "ENTRY_ZONE":
+            return "ENTRY_ZONE_MONITOR"
+        if normalized_risk_alert in {"BALANCED_ZONE", "NEUTRAL_ZONE"}:
+            return "STABLE_MONITOR"
+        return "UNKNOWN_HEALTH"
+
+    @staticmethod
+    def _parse_percentage_label(value: str) -> float:
+        """Parse a percentage label used only for display-state interpretation."""
+        try:
+            return float(str(value).replace("%", "").strip())
+        except (TypeError, ValueError):
+            return 0.0
 
     def set_manual_trade_review_enabled(self, enabled: bool) -> None:
         """Enable Manual Trade only when a validated ready plan exists."""

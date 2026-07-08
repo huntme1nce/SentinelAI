@@ -2,10 +2,18 @@
 MODULE: CORE-000
 FILE: CORE-000-001
 Module Name: Sentinel AI Package
-Version: 2.8.0
+Version: 2.16.0
 Purpose: Exposes package-level application metadata.
 Dependencies: None
 Change History:
+- 2.16.0: Updated package metadata for active-trade health interpretation build.
+- 2.15.0: Updated package metadata for active-trade progress ratio visibility build.
+- 2.14.0: Updated package metadata for active-trade risk alert visibility build.
+- 2.13.0: Updated package metadata for active-trade pressure visibility build.
+- 2.12.0: Updated package metadata for active-trade progress visibility build.
+- 2.11.0: Updated package metadata for closed-trade result visibility build.
+- 2.10.0: Updated package metadata for active-trade summary panel build.
+- 2.9.0: Added GUI clarity milestone metadata for active-trade panel state separation.
 - 2.8.0: Updated package metadata for Stage 9 Learning Readiness build.
 - 2.7.0: Updated package metadata for Stage 8 Trade Manager service completion build.
 - 2.6.0: Updated package metadata for Auto Trade diagnostics and manual lifecycle verification build.
@@ -57,4 +65,4 @@ Change History:
 """
 
 __app_name__ = "Sentinel AI"
-__version__ = "2.8.0"
+__version__ = "2.16.0"

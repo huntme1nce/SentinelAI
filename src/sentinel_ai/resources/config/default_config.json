@@ -3,9 +3,16 @@
     "module_id": "CFG-003",
     "file_id": "CFG-003-001",
     "module_name": "Default Configuration Resource",
-    "version": "2.8.0",
-    "purpose": "Provides packaged default Sentinel AI configuration values for Stage 9 learning-readiness build.",
+    "version": "2.16.0",
+    "purpose": "Provides packaged default Sentinel AI configuration values for the active-trade health interpretation build.",
     "change_history": [
+      "2.16.0: Preserved trading configuration while updating package metadata for active-trade health interpretation build.",
+      "2.15.0: Preserved trading configuration while updating package metadata for active-trade progress ratio visibility build.",
+      "2.14.0: Preserved trading configuration while updating package metadata for active-trade risk alert visibility build.",
+      "2.13.0: Preserved trading configuration while updating package metadata for active-trade pressure visibility build.",
+      "2.12.0: Preserved trading configuration while updating package metadata for active-trade progress visibility build.",
+      "2.11.0: Preserved trading configuration while updating package metadata for closed-trade result visibility build.",
+      "2.10.0: Preserved trading configuration while updating package metadata for active-trade summary panel build.",
       "0.1.0: Added packaged defaults for Sprint 1 foundation.",
       "0.2.0: Added MT5 connection defaults.",
       "0.3.0: Added market data feed defaults and application version update.",
@@ -73,12 +80,13 @@
       "2.5.0: Locked Auto Trade by default and added prediction persistence stabilization.",
       "2.6.0: Added Auto Trade diagnostics build version while keeping Auto Trade locked by default.",
       "2.7.0: Added Stage 8 Trade Manager service completion build version while keeping Auto Trade locked by default.",
+      "2.9.0: Added GUI clarity milestone while preserving trading and learning safety defaults.",
       "2.8.0: Added learning-readiness review defaults while keeping automatic parameter adjustment disabled."
     ]
   },
   "application": {
     "name": "Sentinel AI",
-    "version": "2.8.0",
+    "version": "2.16.0",
     "environment": "production"
   },
   "trading": {
