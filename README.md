@@ -1,107 +1,92 @@
 # Sentinel AI
 
-## Version 2.5.0: Stabilization and Architecture Alignment Build
+## Version 2.7.0: Stage 8 Trade Manager Service Completion Build
 
-This sprint stabilizes the v2.4.0 functional completion baseline before adding more trading features.
+This build completes the controlled build path through **Stage 8**. The key architectural improvement is that Sentinel-owned trade lifecycle handling is now owned by a dedicated `TradeManagerService`, not the GUI bootstrapper.
 
-Primary focus:
+Auto Trade remains locked/dormant by default. This sprint does **not** unlock Auto Trade and does **not** change strategy rules.
 
-```text
-Auto Trade locked/dormant for manual-mode verification
-Prediction lifecycle persistence foundation
-Deduplicated prediction recording during one-second refresh
-Linked prediction UID on Sentinel-owned ledger trades
-Formal unit tests for Auto Trade lock and prediction persistence
-Validator updated for Sprint 2.5.0
-```
-
-## Safety Position
-
-Auto Trade remains unavailable in the UI until manual-mode lifecycle results have enough verified wins/losses.
-
-Toolbar:
+## Completed stages through Stage 8
 
 ```text
-Auto Trade: LOCKED
+Stage 1: Foundation and Architecture                  Completed foundation
+Stage 2: Market Data and Chart Display                Completed foundation
+Stage 3: Analysis Engines                             Completed foundation
+Stage 4: Prediction Lifecycle                         Started and wired to trade lifecycle
+Stage 5: Manual Trade Lifecycle                       Service-managed and validation-ready
+Stage 6: Statistics / Ledger Verification             Service-managed and validation-ready
+Stage 7: Auto Trade Diagnostics                       Implemented, locked/dormant
+Stage 8: Trade Manager Refactor                       Completed in this build
 ```
 
-Runtime guard:
+## What changed in 2.7.0
 
 ```text
-auto_trade_locked: true
+TradeManagerService added
+Trade lifecycle logic moved out of app.py
+Sentinel-owned trade registration delegated to TradeManagerService
+Position lifecycle tracking delegated to TradeManagerService
+Ledger statistics and dashboard totals delegated to TradeManagerService
+Pending-close settlement delegated to TradeManagerService
+Repair Pending History delegated to TradeManagerService
+Archive stale pending delegated to TradeManagerService
+Export ledger delegated to TradeManagerService
+Guarded reset delegated to TradeManagerService
+Trade Manager service unit tests added
+Sprint validator updated for Stage 8
 ```
 
-Even if a signal is emitted programmatically, the application forces Auto Trade back to OFF while the lock is active.
+## Stage 8 architecture result
 
-## Preserved v2.4.0 Capability
-
-The following v2.4.0 functionality remains preserved:
+`app.py` now coordinates UI, refresh events, manual confirmations, and Auto Trade diagnostics only. The service layer owns the Sentinel trade lifecycle:
 
 ```text
-Live MT5 connection
-Live chart
-Symbol selection and persistence
-Market structure, support/resistance, liquidity, imbalance, momentum analysis
-Confidence scoring
-Entry validation
-Risk/reward plan generation
-Manual trade review
-Manual MT5 order placement
-Adaptive filling-mode fallback
-Sentinel-owned trade ledger
-Open trade tracking
-Pending close settlement
-TP/SL close result resolver
-Closed-trade statistics
-Ledger tools
-Repair Pending History
-Ledger export
-Guarded reset
-Simplified dashboard
-Guarded auto-trade code retained but locked/dormant
+TradeManagerService
+├─ register_sentinel_owned_trade
+├─ sync_sentinel_owned_position_ticket
+├─ sentinel_owned_daily_statistics
+├─ track_position_lifecycle
+├─ statistics_with_ledger_totals
+├─ repair_pending_history_records
+├─ archive_stale_pending_records
+├─ export_sentinel_ledger
+└─ reset_test_ledger_guarded
 ```
 
-## Prediction Persistence
+## Current safety default
 
-Sprint 2.5.0 adds a dedicated `PredictionLifecycleService`.
+```json
+"auto_trade_enabled": false,
+"auto_trade_locked": true,
+"one_trade_at_a_time": true,
+"minimum_confidence": 75.0,
+"default_risk_reward": 2.0
+```
 
-It records material prediction changes from the risk/reward stage into SQLite and suppresses duplicate rows when the one-second refresh produces the same recommendation repeatedly.
+## Current build stage
 
-When a Sentinel-owned trade is opened, the linked prediction is marked `TRADE_ACTIVE`.
-
-When the ledger verifies a close result, the linked prediction is closed as:
+Sentinel AI is now through:
 
 ```text
-WIN
-LOSS
-BREAKEVEN
+Stage 8: Trade Manager Refactor
 ```
 
-## Main Dashboard
+The next major stage should be **Stage 9: Learning Engine readiness**, but only after live demo/manual-mode results are verified.
 
-Visible rows remain user-focused:
+## Manual-mode flow to verify
 
 ```text
-Today's Trades
-Win Rate
-Loss Rate
-Net P/L
-Open Trades
-Closed Trades
-Ledger Win Rate
-Ledger Net P/L
-Lifecycle Stage
-Result Status
-Last Result
-Last Close Type
-Active Position
-Open P/L
-Position Ticket
-Protection Status
-Ledger Warning
+Prediction generated
+Prediction recorded
+Manual trade placed
+Trade active
+Trade monitored by TradeManagerService
+Trade closed
+Result resolved as WIN / LOSS / BREAKEVEN
+Ledger updated by TradeManagerService
+Dashboard updated
+Linked prediction closed
 ```
-
-Backend diagnostics stay in the app/ledger tools instead of the main dashboard.
 
 ## Ledger Tools
 
@@ -112,7 +97,7 @@ Export Ledger
 Reset Test Ledger
 ```
 
-Reset is blocked while an active Sentinel trade is open.
+Reset remains blocked while an active Sentinel trade is open.
 
 ## Run
 
@@ -129,11 +114,9 @@ python -m sentinel_ai.main
 Expected validator result includes:
 
 ```text
-auto-trade lock ready
-prediction persistence ready
-formal tests ready
+Stage 8 Trade Manager service ready
 ```
 
 ## Testing Reminder
 
-Use demo first. Manual mode remains the verification path before Auto Trade is unlocked in a future sprint.
+Use demo first. Auto Trade stays locked by default in this build.

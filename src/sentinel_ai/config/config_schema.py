@@ -2,10 +2,12 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-2.5.0
+Version: 2.7.0
 Purpose: Defines validated configuration models for Sentinel AI, including modular analysis-engine settings.
 Dependencies: dataclasses, typing
 Change History:
+- 2.7.0: Preserved schema while versioning the Stage 8 Trade Manager service completion build.
+- 2.6.0: Preserved schema while versioning the Auto Trade diagnostics sprint.
 - 2.5.0: Added explicit Auto Trade lock configuration for stabilization baseline.
 - 2.4.0: Preserved trading configuration for guarded auto-trade completion build.
 - 2.3.0: Preserved configuration for completion build.

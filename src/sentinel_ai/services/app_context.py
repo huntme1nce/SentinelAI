@@ -2,10 +2,12 @@
 MODULE: SVC-002
 FILE: SVC-002-001
 Module Name: Application Context
-2.5.0
-Purpose: Composes Sentinel AI services without coupling GUI to trading, symbol management, analysis, or persistence internals.
+Version: 2.7.0
+Purpose: Composes Sentinel AI services without coupling GUI to trading, symbol management, analysis, persistence, Auto Trade diagnostics, or trade lifecycle management internals.
 Dependencies: logging, sentinel_ai.analysis, sentinel_ai.config, sentinel_ai.database, sentinel_ai.logging_service, sentinel_ai.market_data, sentinel_ai.mt5, sentinel_ai.symbols
 Change History:
+- 2.7.0: Composed TradeManagerService for Stage 8 lifecycle-service extraction.
+- 2.6.0: Added Auto Trade diagnostics service composition for transparent execution gating.
 - 2.5.0: Added prediction lifecycle service composition for persistence stabilization.
 - 2.4.0: Preserved service composition for guarded auto-trade completion build.
 - 2.3.0: Preserved service composition for completion build.
@@ -88,6 +90,8 @@ from sentinel_ai.market_data.market_data_feed import MarketDataFeedService
 from sentinel_ai.market_data.market_refresh_service import MarketRefreshService
 from sentinel_ai.mt5.mt5_service import MetaTrader5Service
 from sentinel_ai.services.prediction_lifecycle_service import PredictionLifecycleService
+from sentinel_ai.services.auto_trade_diagnostics_service import AutoTradeDiagnosticsService
+from sentinel_ai.services.trade_manager_service import TradeManagerService
 from sentinel_ai.symbols.symbol_management_service import SymbolManagementService
 
 
@@ -101,6 +105,8 @@ class ApplicationContext:
     database_service: DatabaseService
     prediction_repository: PredictionRepository
     prediction_lifecycle_service: PredictionLifecycleService
+    auto_trade_diagnostics_service: AutoTradeDiagnosticsService
+    trade_manager_service: TradeManagerService
     mt5_service: MetaTrader5Service
     symbol_service: SymbolManagementService
     market_data_feed_service: MarketDataFeedService
@@ -131,7 +137,14 @@ class ApplicationContextFactory:
             engine_version=config.application.version,
             logger=logger,
         )
+        auto_trade_diagnostics_service = AutoTradeDiagnosticsService()
         mt5_service = MetaTrader5Service(config.mt5, logger)
+        trade_manager_service = TradeManagerService(
+            mt5_service=mt5_service,
+            manual_config=config.manual_trading,
+            prediction_lifecycle_service=prediction_lifecycle_service,
+            logger=logger,
+        )
         symbol_service = SymbolManagementService(
             market_data_gateway=mt5_service,
             config_service=config_service,
@@ -187,6 +200,8 @@ class ApplicationContextFactory:
             database_service=database_service,
             prediction_repository=prediction_repository,
             prediction_lifecycle_service=prediction_lifecycle_service,
+            auto_trade_diagnostics_service=auto_trade_diagnostics_service,
+            trade_manager_service=trade_manager_service,
             mt5_service=mt5_service,
             symbol_service=symbol_service,
             market_data_feed_service=market_data_feed_service,

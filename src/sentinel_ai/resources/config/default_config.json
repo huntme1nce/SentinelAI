@@ -3,8 +3,8 @@
     "module_id": "CFG-003",
     "file_id": "CFG-003-001",
     "module_name": "Default Configuration Resource",
-    "version": "2.5.0",
-    "purpose": "Provides packaged default Sentinel AI configuration values for stabilization and architecture-alignment build.",
+    "version": "2.7.0",
+    "purpose": "Provides packaged default Sentinel AI configuration values for Stage 8 Trade Manager service completion build.",
     "change_history": [
       "0.1.0: Added packaged defaults for Sprint 1 foundation.",
       "0.2.0: Added MT5 connection defaults.",
@@ -70,12 +70,14 @@
       "2.2.0: Added lenient close settlement resolver and moved pending diagnostics out of main dashboard.",
       "2.3.0: Added pending history repair tool and final manual-mode completion status.",
       "2.4.0: Added guarded auto-trade execution engine, default OFF, confirmation-gated, one-trade-at-a-time.",
-      "2.5.0: Locked Auto Trade by default and added prediction persistence stabilization."
+      "2.5.0: Locked Auto Trade by default and added prediction persistence stabilization.",
+      "2.6.0: Added Auto Trade diagnostics build version while keeping Auto Trade locked by default.",
+      "2.7.0: Added Stage 8 Trade Manager service completion build version while keeping Auto Trade locked by default."
     ]
   },
   "application": {
     "name": "Sentinel AI",
-    "version": "2.5.0",
+    "version": "2.7.0",
     "environment": "production"
   },
   "trading": {

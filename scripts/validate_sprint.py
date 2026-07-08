@@ -2,11 +2,12 @@
 MODULE: OPS-001
 FILE: OPS-001-001
 Module Name: Sprint Validator
-2.5.0
-Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, one-second refresh, symbol management, market structure, support/resistance, liquidity, imbalance, momentum, confidence, entry validation, risk/reward analysis, locked Auto Trade, and prediction persistence.
+Version: 2.7.0
+Purpose: Validates Sprint source syntax, resources, configuration loading, MT5 mapping, market feed conversion, chart assets, analysis engines, locked Auto Trade, prediction persistence, Auto Trade diagnostics, Trade Manager service extraction, and formal tests.
 Dependencies: compileall, datetime, json, logging, pathlib, sys, pandas
 Change History:
-- 2.5.0: Added validation for Auto Trade lock, prediction lifecycle service, and formal unit tests.
+- 2.7.0: Added validation for Stage 8 TradeManagerService extraction and app delegation.
+- 2.6.0: Added validation for Auto Trade diagnostics service, dashboard routing, prediction lifecycle service, and formal unit tests.
 - 2.4.0: Added validation for guarded auto-trade execution engine and toolbar enablement.
 - 2.3.0: Added validation for pending history repair tool and final manual-mode completion workflows.
 - 2.2.0: Added validation for lenient close resolver and simplified dashboard rows.
@@ -118,8 +119,10 @@ def main() -> int:
         source_root / "sentinel_ai" / "analysis" / "entry_validation_engine.py",
         source_root / "sentinel_ai" / "analysis" / "risk_reward_engine.py",
         source_root / "sentinel_ai" / "services" / "prediction_lifecycle_service.py",
+        source_root / "sentinel_ai" / "services" / "trade_manager_service.py",
         project_root / "tests" / "test_trading_config_lock.py",
         project_root / "tests" / "test_prediction_lifecycle_service.py",
+        project_root / "tests" / "test_trade_manager_service.py",
         project_root / "SentinelAI.spec",
         project_root / "requirements.txt",
     ]
@@ -157,6 +160,7 @@ def main() -> int:
     from sentinel_ai.models.trade_execution import ManualTradeOrderRequest, ManualTradeOrderResult
     from sentinel_ai.models.position_monitoring import DailyTradeStatisticsSnapshot, PositionMonitorSnapshot
     from sentinel_ai.models.sentinel_trade import SentinelOwnedTrade
+    from sentinel_ai.services.trade_manager_service import TradeManagerService
     from sentinel_ai.analysis.market_structure_engine import MarketStructureEngine
     from sentinel_ai.analysis.support_resistance_engine import SupportResistanceEngine
     from sentinel_ai.config.config_service import ConfigService
@@ -331,11 +335,11 @@ def main() -> int:
     if "M5" not in Mt5TimeframeMapper.SUPPORTED_TIMEFRAMES:
         print("MT5 timeframe mapper validation failed.", file=sys.stderr)
         return 1
-    if config.application.version != "2.5.0":
-        print("Application version must be 2.5.0 for Sprint 2.5 stabilization.", file=sys.stderr)
+    if config.application.version != "2.7.0":
+        print("Application version must be 2.7.0 for Sprint 2.7 Stage 8 Trade Manager service completion.", file=sys.stderr)
         return 1
     if not config.trading.auto_trade_locked:
-        print("Auto Trade must remain locked for Sprint 2.5 stabilization.", file=sys.stderr)
+        print("Auto Trade must remain locked for Sprint 2.7 Stage 8 Trade Manager service completion.", file=sys.stderr)
         return 1
     if config.market_data.default_feed_bar_count < 1:
         print("Market data configuration validation failed.", file=sys.stderr)
@@ -893,105 +897,100 @@ def main() -> int:
         print("Active position chart-lock routing validation failed.", file=sys.stderr)
         return 1
     app_resource = (source_root / "sentinel_ai" / "app.py").read_text(encoding="utf-8")
+    trade_manager_resource = (source_root / "sentinel_ai" / "services" / "trade_manager_service.py").read_text(encoding="utf-8")
     if "_update_position_monitoring" not in app_resource or "monitor_symbol_position" not in app_resource:
         print("Position monitor app wiring validation failed.", file=sys.stderr)
         return 1
-    if "_track_position_lifecycle" not in app_resource or "Sentinel app trade closed:" not in app_resource:
-        print("Position lifecycle transition validation failed.", file=sys.stderr)
+    if "self._trade_manager" not in app_resource or "sync_sentinel_owned_position_ticket" not in app_resource:
+        print("Application Trade Manager delegation validation failed.", file=sys.stderr)
         return 1
-    if "_register_sentinel_owned_trade" not in app_resource or "_sentinel_owned_daily_statistics" not in app_resource:
-        print("Sentinel-owned trade tracking validation failed.", file=sys.stderr)
-        return 1
-    if "_save_sentinel_owned_trade" not in app_resource or "_load_sentinel_owned_trade" not in app_resource:
-        print("Sentinel-owned trade journal validation failed.", file=sys.stderr)
-        return 1
-    if "_sentinel_trade_ledger_path" not in app_resource or "_load_sentinel_trade_ledger" not in app_resource or "_save_sentinel_trade_ledger" not in app_resource:
-        print("Persistent Sentinel trade ledger validation failed.", file=sys.stderr)
-        return 1
-    if "_upsert_sentinel_trade" not in app_resource or "_sentinel_owned_tickets" not in app_resource:
-        print("Sentinel ledger upsert/ticket validation failed.", file=sys.stderr)
-        return 1
-    if "Recovered active Sentinel-owned trade" not in app_resource:
-        print("Active Sentinel trade recovery validation failed.", file=sys.stderr)
-        return 1
-    if "_close_sentinel_owned_trade" not in app_resource or "_statistics_with_ledger_totals" not in app_resource:
-        print("Ledger close-result persistence/statistics validation failed.", file=sys.stderr)
-        return 1
-    if "_ledger_result_status" not in app_resource or "Sentinel trade open" not in app_resource:
-        print("Ledger result verification status validation failed.", file=sys.stderr)
-        return 1
-    if "_active_trade_guard_statistics" not in app_resource or "SENTINEL_ACTIVE_TICKET_GUARD" not in app_resource:
-        print("Active ticket close guard validation failed.", file=sys.stderr)
-        return 1
-    if "_mark_sentinel_trade_pending_close" not in app_resource or "SENTINEL_PENDING_CLOSE" not in app_resource:
-        print("Pending close settlement validation failed.", file=sys.stderr)
-        return 1
-    if "_ledger_lifecycle_stage" not in app_resource or "_diagnostic_tracked_ticket" not in app_resource:
-        print("Lifecycle diagnostics app validation failed.", file=sys.stderr)
-        return 1
-    if "@staticmethod\n    def _ledger_result_status" not in app_resource:
-        print("Lifecycle result-status static binding validation failed.", file=sys.stderr)
-        return 1
-    if "_pending_close_age_seconds" not in app_resource:
-        print("Pending close age app validation failed.", file=sys.stderr)
-        return 1
-    if "_close_resolver_status" not in app_resource or "_audit_warning" not in app_resource:
-        print("Close resolver/audit app validation failed.", file=sys.stderr)
-        return 1
-    app_ast = ast.parse(app_resource)
-    app_class_methods: set[str] = set()
-    for node in app_ast.body:
-        if isinstance(node, ast.ClassDef) and node.name == "SentinelApplication":
-            app_class_methods = {child.name for child in node.body if isinstance(child, ast.FunctionDef)}
-            break
-    required_app_methods = {
-        "_close_resolver_status",
-        "_audit_warning",
-        "_ledger_result_status",
+    legacy_lifecycle_methods = {
+        "_track_position_lifecycle",
+        "_sentinel_owned_daily_statistics",
         "_statistics_with_ledger_totals",
-        "_ledger_health_status",
-        "_stale_pending_trade_count",
-        "_repair_pending_history_records",
+        "_load_sentinel_trade_ledger",
+        "_save_sentinel_trade_ledger",
         "_resolve_single_pending_trade_from_history",
-        "_resolved_close_time_is_valid_for_trade",
-        "_trade_ticket_tuple",
-        "_handle_auto_trade_toggled",
-        "_evaluate_auto_trade_after_analysis",
-        "_auto_trade_plan_passes_guardrails",
-        "_auto_trade_plan_key",
     }
-    if not required_app_methods.issubset(app_class_methods):
-        print("Application resolver helper binding validation failed.", file=sys.stderr)
+    if any(method in app_resource for method in legacy_lifecycle_methods):
+        print("Stage 8 validation failed: lifecycle helpers should live in TradeManagerService, not app.py.", file=sys.stderr)
         return 1
-    if "_current_resolution_opened_at" not in app_resource or "owned_trade_opened_at=self._current_resolution_opened_at()" not in app_resource:
-        print("App close resolver parameter routing validation failed.", file=sys.stderr)
-        return 1
-    if "_trade_can_accept_resolved_close" not in app_resource or "self._tracked_active_position_ticket = None" not in app_resource:
-        print("Close settlement ledger sync validation failed.", file=sys.stderr)
-        return 1
-    if "CURRENT_ACTIVE_WITH_STALE_PENDING_BACKLOG" not in app_resource or "MANUAL_MODE_FOUNDATION_COMPLETE_AUTO_TRADE_LOCKED" not in app_resource:
-        print("Current trade priority/final completion status validation failed.", file=sys.stderr)
-        return 1
-    if "current_pending_trades" not in app_resource or "stale_pending_trades" not in app_resource:
-        print("Pending close/backlog separation validation failed.", file=sys.stderr)
-        return 1
-    if "_is_pending_trade_stale" not in app_resource or "pending_backlog = len(stale_pending_trades)" not in app_resource:
-        print("Stale pending backlog helper validation failed.", file=sys.stderr)
-        return 1
-    if "ledger_pending = len(current_pending_trades)" not in app_resource:
-        print("Current pending close count validation failed.", file=sys.stderr)
+    required_trade_manager_markers = (
+        "class TradeManagerService",
+        "register_sentinel_owned_trade",
+        "track_position_lifecycle",
+        "Sentinel app trade closed:",
+        "sentinel_owned_daily_statistics",
+        "save_sentinel_owned_trade",
+        "load_sentinel_owned_trade",
+        "sentinel_trade_ledger_path",
+        "load_sentinel_trade_ledger",
+        "save_sentinel_trade_ledger",
+        "upsert_sentinel_trade",
+        "sentinel_owned_tickets",
+        "Recovered active Sentinel-owned trade",
+        "close_sentinel_owned_trade",
+        "statistics_with_ledger_totals",
+        "ledger_result_status",
+        "Sentinel trade open",
+        "active_trade_guard_statistics",
+        "SENTINEL_ACTIVE_TICKET_GUARD",
+        "mark_sentinel_trade_pending_close",
+        "SENTINEL_PENDING_CLOSE",
+        "ledger_lifecycle_stage",
+        "diagnostic_tracked_ticket",
+        "pending_close_age_seconds",
+        "close_resolver_status",
+        "audit_warning",
+        "current_resolution_opened_at",
+        "owned_trade_opened_at=self.current_resolution_opened_at(active_symbol)",
+        "trade_can_accept_resolved_close",
+        "self._tracked_active_position_ticket = None",
+        "CURRENT_ACTIVE_WITH_STALE_PENDING_BACKLOG",
+        "STAGE_8_COMPLETE_AUTO_TRADE_LOCKED",
+        "current_pending_trades",
+        "stale_pending_trades",
+        "is_pending_trade_stale",
+        "pending_backlog = len(stale_pending_trades)",
+        "ledger_pending = len(current_pending_trades)",
+        "repair_pending_history_records",
+        "resolve_single_pending_trade_from_history",
+        "resolved_close_time_is_valid_for_trade",
+        "trade_ticket_tuple",
+        "export_sentinel_ledger",
+        "reset_test_ledger_guarded",
+        "Reset blocked because an active Sentinel trade is open",
+        "reopen_sentinel_trade_from_active_position",
+        "trade_matches_position_ticket",
+        "Ignored false close result for still-active Sentinel ticket",
+        "trades_share_ticket",
+        "sentinel_comment=self._manual_config.order_comment",
+        "STAGE_8_TRADE_MANAGER_SERVICE_COMPLETE",
+    )
+    if any(marker not in trade_manager_resource for marker in required_trade_manager_markers):
+        print("Trade Manager service lifecycle validation failed.", file=sys.stderr)
         return 1
     if "_show_ledger_maintenance_tools" not in app_resource or "_archive_stale_pending_records" not in app_resource:
-        print("Ledger maintenance action validation failed.", file=sys.stderr)
+        print("Ledger maintenance GUI action validation failed.", file=sys.stderr)
         return 1
-    if "_repair_pending_history_records" not in app_resource or "_resolve_single_pending_trade_from_history" not in app_resource:
-        print("Pending history repair validation failed.", file=sys.stderr)
+    if "_repair_pending_history_records" not in app_resource or "self._trade_manager.repair_pending_history_records" not in app_resource:
+        print("Pending history repair delegation validation failed.", file=sys.stderr)
         return 1
     if "_handle_auto_trade_toggled" not in app_resource or "_evaluate_auto_trade_after_analysis" not in app_resource:
         print("Guarded auto-trade app validation failed.", file=sys.stderr)
         return 1
-    if "config.trading.auto_trade_locked" not in app_resource or "Auto Trade is locked" not in app_resource:
+    if "auto_trade_locked" not in app_resource:
         print("Auto Trade lock app validation failed.", file=sys.stderr)
+        return 1
+    auto_trade_diagnostics_resource = (source_root / "sentinel_ai" / "services" / "auto_trade_diagnostics_service.py").read_text(encoding="utf-8")
+    if "class AutoTradeDiagnosticsService" not in auto_trade_diagnostics_resource or "AutoTradeDiagnostic" not in auto_trade_diagnostics_resource:
+        print("Auto Trade diagnostics service validation failed.", file=sys.stderr)
+        return 1
+    if "LOCKED" not in auto_trade_diagnostics_resource or "ARMED" not in auto_trade_diagnostics_resource or "ORDER_FAILED" not in auto_trade_diagnostics_resource:
+        print("Auto Trade diagnostic state validation failed.", file=sys.stderr)
+        return 1
+    if "Auto Trade Status" not in statistics_panel_resource or "update_auto_trade_diagnostics" not in statistics_panel_resource:
+        print("Auto Trade diagnostics dashboard validation failed.", file=sys.stderr)
         return 1
     prediction_lifecycle_resource = (source_root / "sentinel_ai" / "services" / "prediction_lifecycle_service.py").read_text(encoding="utf-8")
     if "class PredictionLifecycleService" not in prediction_lifecycle_resource or "record_from_risk_reward_snapshot" not in prediction_lifecycle_resource or "_build_signature" not in prediction_lifecycle_resource:
@@ -1001,33 +1000,15 @@ def main() -> int:
     if "prediction_lifecycle_service" not in app_context_resource or "PredictionLifecycleService" not in app_context_resource:
         print("Prediction lifecycle service composition validation failed.", file=sys.stderr)
         return 1
+    if "trade_manager_service" not in app_context_resource or "TradeManagerService" not in app_context_resource:
+        print("Trade Manager service composition validation failed.", file=sys.stderr)
+        return 1
     sentinel_trade_resource = (source_root / "sentinel_ai" / "models" / "sentinel_trade.py").read_text(encoding="utf-8")
     if "prediction_uid" not in sentinel_trade_resource:
         print("Sentinel trade prediction linkage validation failed.", file=sys.stderr)
         return 1
     if "_auto_trade_plan_passes_guardrails" not in app_resource or "SENTINEL_APP_AUTO" not in app_resource:
         print("Auto-trade guardrail/ledger validation failed.", file=sys.stderr)
-        return 1
-    if "_resolved_close_time_is_valid_for_trade" not in app_resource or "_trade_ticket_tuple" not in app_resource:
-        print("Pending history repair guard validation failed.", file=sys.stderr)
-        return 1
-    if "_export_sentinel_ledger" not in app_resource or "_reset_test_ledger_guarded" not in app_resource:
-        print("Ledger export/reset validation failed.", file=sys.stderr)
-        return 1
-    if "Reset blocked because an active Sentinel trade is open" not in app_resource:
-        print("Active-trade guarded reset validation failed.", file=sys.stderr)
-        return 1
-    if "_reopen_sentinel_trade_from_active_position" not in app_resource or "_trade_matches_position_ticket" not in app_resource:
-        print("Active ledger reopen validation failed.", file=sys.stderr)
-        return 1
-    if "Ignored false close result for still-active Sentinel ticket" not in app_resource:
-        print("False close suppression validation failed.", file=sys.stderr)
-        return 1
-    if "_trades_share_ticket" not in app_resource:
-        print("Ledger duplicate-ticket upsert validation failed.", file=sys.stderr)
-        return 1
-    if "sentinel_comment=sentinel_comment" not in app_resource:
-        print("Sentinel recovery comment routing validation failed.", file=sys.stderr)
         return 1
     if "No Sentinel app trade closed yet" not in mt5_service_resource or "Sentinel app trade is still open" not in mt5_service_resource:
         print("Sentinel-only statistics status validation failed.", file=sys.stderr)
@@ -1187,7 +1168,7 @@ def main() -> int:
         "Sprint validation passed: source compiled, resources verified, config loaded, "
         "MT5 mapping available, market feed conversion validated, chart assets ready, "
         "one-second live refresh configured, chart navigation ready, symbol management ready, "
-        "market structure engine ready, support/resistance engine ready, liquidity engine ready, imbalance engine ready, momentum engine ready, confidence engine ready, entry validation engine ready, risk/reward engine ready, active overlay range boxing ready, chart right-scroll ready, true consolidation filter ready, rendered-range status ready, single-canvas repaint path ready, trade plan overlay ready, manual review gate ready, polished manual order modal ready, manual MT5 order placement ready, adaptive filling-mode fallback ready, position monitoring ready, daily trade statistics ready, active trade chart lock ready, position-priority display ready, startup lock initialization ready, missing TP chart-scale guard ready, active protection warning ready, closed-trade lifecycle tracking ready, last result dashboard ready, active header priority ready, countdown removed ready, MT5 history fallback ready, close type dashboard ready, Sentinel-owned tracking ready, outside MT5 trade suppression ready, Sentinel journal persistence ready, Sentinel magic/comment recovery ready, persistent Sentinel trade ledger ready, multi-ticket app statistics ready, active Sentinel trade recovery ready, ledger outcome persistence ready, ledger performance dashboard ready, open/closed ledger dashboard ready, trade result verification status ready, active-ticket close guard ready, strict DEAL_ENTRY_OUT filtering ready, false close suppression ready, pending close settlement ready, lifecycle diagnostics ready, pending close age diagnostics ready, lifecycle result-status binding hotfix ready, robust close resolver ready, resolver audit diagnostics ready, MT5 resolver binding hotfix ready, app resolver helper binding hotfix ready, final stabilization dashboard ready, current trade priority ready, stale pending backlog audit ready, pending close/backlog separation ready, ledger maintenance tools ready, stale archive/export/reset ready, lenient TP close resolver ready, simplified dashboard ready, pending history repair ready, manual-mode completion build ready, guarded auto-trade completion ready, auto-trade lock ready, prediction persistence ready, formal tests ready."
+        "market structure engine ready, support/resistance engine ready, liquidity engine ready, imbalance engine ready, momentum engine ready, confidence engine ready, entry validation engine ready, risk/reward engine ready, active overlay range boxing ready, chart right-scroll ready, true consolidation filter ready, rendered-range status ready, single-canvas repaint path ready, trade plan overlay ready, manual review gate ready, polished manual order modal ready, manual MT5 order placement ready, adaptive filling-mode fallback ready, position monitoring ready, daily trade statistics ready, active trade chart lock ready, position-priority display ready, startup lock initialization ready, missing TP chart-scale guard ready, active protection warning ready, closed-trade lifecycle tracking ready, last result dashboard ready, active header priority ready, countdown removed ready, MT5 history fallback ready, close type dashboard ready, Sentinel-owned tracking ready, outside MT5 trade suppression ready, Sentinel journal persistence ready, Sentinel magic/comment recovery ready, persistent Sentinel trade ledger ready, multi-ticket app statistics ready, active Sentinel trade recovery ready, ledger outcome persistence ready, ledger performance dashboard ready, open/closed ledger dashboard ready, trade result verification status ready, active-ticket close guard ready, strict DEAL_ENTRY_OUT filtering ready, false close suppression ready, pending close settlement ready, lifecycle diagnostics ready, pending close age diagnostics ready, lifecycle result-status binding hotfix ready, robust close resolver ready, resolver audit diagnostics ready, MT5 resolver binding hotfix ready, app resolver helper binding hotfix ready, final stabilization dashboard ready, current trade priority ready, stale pending backlog audit ready, pending close/backlog separation ready, ledger maintenance tools ready, stale archive/export/reset ready, lenient TP close resolver ready, simplified dashboard ready, pending history repair ready, manual-mode completion build ready, guarded auto-trade completion ready, auto-trade lock ready, prediction persistence ready, Auto Trade diagnostics ready, Stage 8 Trade Manager service ready, formal tests ready."
     )
     return 0
 

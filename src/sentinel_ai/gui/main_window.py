@@ -2,10 +2,11 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-2.5.0
-Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, market-structure, or analysis logic.
+2.6.0
+Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, market-structure, analysis, or Auto Trade diagnostics logic.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models
 Change History:
+- 2.6.0: Routed Auto Trade diagnostics to the statistics dashboard.
 - 2.5.0: Added explicit Auto Trade locked-state UI guard for manual-mode stabilization.
 - 2.4.0: Enabled guarded Auto Trade control and added programmatic auto-trade state updates.
 - 2.3.0: Preserved Ledger Tools toolbar routing for pending history repair.
@@ -252,6 +253,10 @@ class MainWindow(QMainWindow):
 
     def update_statistics_panel(self, statistics: dict[str, object], learning_status: str) -> None:
         self._statistics_panel.update_statistics(statistics, learning_status)
+
+    def update_auto_trade_diagnostics(self, status: str, reason: str) -> None:
+        """Display Auto Trade readiness diagnostics without owning execution logic."""
+        self._statistics_panel.update_auto_trade_diagnostics(status, reason)
 
     def set_service_status(self, message: str) -> None:
         self.statusBar().showMessage(message)

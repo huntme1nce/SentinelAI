@@ -2,10 +2,11 @@
 MODULE: GUI-003
 FILE: GUI-003-003
 Module Name: Statistics Panel
-2.4.0
-Purpose: Displays persistent prediction statistics in the bottom-right dashboard area.
+2.6.0
+Purpose: Displays persistent prediction statistics and Auto Trade diagnostics in the bottom-right dashboard area.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets
 Change History:
+- 2.6.0: Added Auto Trade status and reason rows to expose execution blockers.
 - 2.4.0: Preserved simplified dashboard for guarded auto-trade completion build.
 - 2.3.0: Preserved simplified dashboard while ledger repair stays in tools/backend.
 - 2.2.0: Simplified the main dashboard by hiding backend-only pending/resolver diagnostics.
@@ -84,6 +85,8 @@ class StatisticsPanel(QFrame):
             "Position Ticket",
             "Protection Status",
             "Ledger Warning",
+            "Auto Trade Status",
+            "Auto Trade Reason",
         ]
         for row, label_text in enumerate(labels):
             label = QLabel(f"{label_text}:")
@@ -113,6 +116,11 @@ class StatisticsPanel(QFrame):
         if warning in {"", "-"}:
             warning = str(statistics.get("ledger_warning", "-"))
         self._fields["Ledger Warning"].setText(warning)
+
+    def update_auto_trade_diagnostics(self, status: str, reason: str) -> None:
+        """Update visible Auto Trade diagnostic fields without triggering trade execution."""
+        self._fields["Auto Trade Status"].setText(status or "-")
+        self._fields["Auto Trade Reason"].setText(reason or "-")
 
     def update_position_monitor(
         self,

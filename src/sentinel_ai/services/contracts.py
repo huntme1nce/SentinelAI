@@ -6,6 +6,7 @@ Module Name: Service Contracts
 Purpose: Defines replaceable service interfaces for analysis, market data, symbol management, prediction, trading, learning, and notifications.
 Dependencies: abc, pandas, sentinel_ai.models.liquidity, sentinel_ai.models.market, sentinel_ai.models.market_structure, sentinel_ai.models.prediction
 Change History:
+- 2.7.0: Added TradeManagerServiceContract for Stage 8 lifecycle orchestration separation.
 - 2.4.0: Preserved trade service contracts for guarded auto-trade completion build.
 - 2.3.0: Preserved close resolver contract for pending history repair.
 - 2.2.0: Preserved close resolver contract for improved TP close settlement.
@@ -85,6 +86,7 @@ from sentinel_ai.models.market import (
 from sentinel_ai.models.symbol import SymbolCatalogItem
 from sentinel_ai.models.trade_execution import ManualTradeOrderRequest, ManualTradeOrderResult
 from sentinel_ai.models.position_monitoring import DailyTradeStatisticsSnapshot, PositionMonitorSnapshot
+from sentinel_ai.models.sentinel_trade import SentinelOwnedTrade
 from sentinel_ai.models.market_structure import MarketStructureSnapshot
 from sentinel_ai.models.support_resistance import SupportResistanceSnapshot
 from sentinel_ai.models.prediction import PredictionRecord
@@ -338,6 +340,36 @@ class TradingServiceContract(ABC):
     def disable_auto_trade(self) -> None:
         """Disable automatic trade execution mode."""
         raise NotImplementedError("TradingServiceContract.disable_auto_trade must be implemented by a trading adapter.")
+
+
+class TradeManagerServiceContract(ABC):
+    """Define the contract for Sentinel-owned trade lifecycle orchestration."""
+
+    @abstractmethod
+    def register_sentinel_owned_trade(
+        self,
+        snapshot: RiskRewardSnapshot,
+        result: ManualTradeOrderResult,
+        *,
+        source: str = "SENTINEL_APP_MANUAL",
+    ) -> SentinelOwnedTrade | None:
+        """Persist one Sentinel-created trade and link it to a prediction lifecycle record."""
+        raise NotImplementedError("TradeManagerServiceContract.register_sentinel_owned_trade must be implemented.")
+
+    @abstractmethod
+    def sentinel_owned_daily_statistics(
+        self,
+        *,
+        position_snapshot: PositionMonitorSnapshot,
+        active_symbol: str,
+    ) -> DailyTradeStatisticsSnapshot:
+        """Return Sentinel-owned trade statistics with ledger totals and current lifecycle state."""
+        raise NotImplementedError("TradeManagerServiceContract.sentinel_owned_daily_statistics must be implemented.")
+
+    @abstractmethod
+    def repair_pending_history_records(self) -> object:
+        """Attempt to resolve pending-close ledger records from broker history."""
+        raise NotImplementedError("TradeManagerServiceContract.repair_pending_history_records must be implemented.")
 
 
 class LearningServiceContract(ABC):
