@@ -2,10 +2,13 @@
 MODULE: GUI-003
 FILE: GUI-003-003
 Module Name: Statistics Panel
-Version: 2.17.0
-Purpose: Displays persistent prediction statistics, open-trade health, profit-lock preview, progress ratios, pressure/risk alerts, and Auto Trade diagnostics in the bottom-right dashboard area.
+Version: 2.20.0
+Purpose: Displays persistent prediction statistics, open-trade health, profit-lock preview, progress ratios, pressure/risk alerts, and Auto Trade diagnostics in grouped compact left-sidebar sections.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets
 Change History:
+- 2.20.0: Grouped long sidebar rows into readable sections to preserve chart-first layout clarity.
+- 2.19.0: Reduced sidebar width pressure and row spacing to protect chart workspace width.
+- 2.18.0: Prepared statistics for left-sidebar scrolling so long dashboard lists no longer shrink the chart.
 - 2.17.0: Added Profit Lock preview rows for future SL protection manager readiness.
 - 2.16.0: Added Trade Health row for display-only active-trade interpretation.
 - 2.15.0: Added TP Progress, SL Risk, and Route State rows for display-only open Sentinel trade monitoring.
@@ -49,7 +52,7 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout
+from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QSizePolicy, QVBoxLayout
 
 
 class StatisticsPanel(QFrame):
@@ -59,60 +62,107 @@ class StatisticsPanel(QFrame):
         """Initialize the statistics panel."""
         super().__init__()
         self.setObjectName("Panel")
+        self.setMinimumWidth(315)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         self._fields: dict[str, QLabel] = {}
         self._build_ui()
 
     def _build_ui(self) -> None:
-        """Build the statistics panel layout."""
+        """Build the grouped statistics sidebar layout."""
         outer_layout = QVBoxLayout(self)
-        outer_layout.setContentsMargins(18, 18, 18, 18)
+        outer_layout.setContentsMargins(10, 10, 10, 10)
+        outer_layout.setSpacing(8)
         title = QLabel("Statistics")
         title.setStyleSheet("font-weight: 700; font-size: 12pt;")
         outer_layout.addWidget(title)
 
+        section_groups: tuple[tuple[str, tuple[str, ...]], ...] = (
+            (
+                "Performance",
+                (
+                    "Today's Trades",
+                    "Win Rate",
+                    "Loss Rate",
+                    "Net P/L",
+                    "Open Trades",
+                    "Closed Trades",
+                    "Ledger Win Rate",
+                    "Ledger Net P/L",
+                ),
+            ),
+            (
+                "Trade Lifecycle",
+                (
+                    "Lifecycle Stage",
+                    "Result Status",
+                    "Last Result",
+                    "Last Close Type",
+                    "Active Position",
+                    "Open P/L",
+                    "Position Ticket",
+                    "Protection Status",
+                    "Ledger Warning",
+                ),
+            ),
+            (
+                "Trade Monitoring",
+                (
+                    "Trade Pressure",
+                    "Risk Alert",
+                    "TP Progress",
+                    "SL Risk",
+                    "Route State",
+                    "Trade Health",
+                ),
+            ),
+            (
+                "Profit Lock Preview",
+                (
+                    "Profit Lock",
+                    "Next Lock Trigger",
+                    "Suggested Lock SL",
+                    "Suggested Lock",
+                ),
+            ),
+            (
+                "Automation",
+                (
+                    "Auto Trade Status",
+                    "Auto Trade Reason",
+                ),
+            ),
+            (
+                "Learning",
+                (
+                    "Learning Status",
+                    "Learning Sample",
+                    "Learning Pattern",
+                    "Learning Action",
+                ),
+            ),
+        )
+        for section_title, labels in section_groups:
+            self._add_section(outer_layout, section_title, labels)
+        outer_layout.addStretch(1)
+
+    def _add_section(self, outer_layout: QVBoxLayout, section_title: str, labels: tuple[str, ...]) -> None:
+        """Add a titled statistics section while preserving update field names."""
+        section_label = QLabel(section_title)
+        section_label.setObjectName("SidebarSectionHeader")
+        section_label.setStyleSheet("font-weight: 700; margin-top: 4px;")
+        outer_layout.addWidget(section_label)
+
         grid = QGridLayout()
-        grid.setHorizontalSpacing(14)
-        grid.setVerticalSpacing(8)
-        labels = [
-            "Today's Trades",
-            "Win Rate",
-            "Loss Rate",
-            "Net P/L",
-            "Open Trades",
-            "Closed Trades",
-            "Ledger Win Rate",
-            "Ledger Net P/L",
-            "Lifecycle Stage",
-            "Result Status",
-            "Last Result",
-            "Last Close Type",
-            "Active Position",
-            "Open P/L",
-            "Trade Pressure",
-            "Risk Alert",
-            "TP Progress",
-            "SL Risk",
-            "Route State",
-            "Trade Health",
-            "Profit Lock",
-            "Next Lock Trigger",
-            "Suggested Lock SL",
-            "Suggested Lock",
-            "Position Ticket",
-            "Protection Status",
-            "Ledger Warning",
-            "Auto Trade Status",
-            "Auto Trade Reason",
-            "Learning Status",
-            "Learning Sample",
-            "Learning Pattern",
-            "Learning Action",
-        ]
+        grid.setHorizontalSpacing(7)
+        grid.setVerticalSpacing(3)
         for row, label_text in enumerate(labels):
             label = QLabel(f"{label_text}:")
             label.setObjectName("MutedLabel")
             value = QLabel("-")
             value.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            value.setWordWrap(True)
+            value.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            value.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
             self._fields[label_text] = value
             grid.addWidget(label, row, 0)
             grid.addWidget(value, row, 1)

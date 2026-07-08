@@ -2,10 +2,12 @@
 MODULE: GUI-003
 FILE: GUI-003-002
 Module Name: Prediction Panel
-Version: 2.17.0
-Purpose: Displays current prediction, active-trade health/profit-lock preview, progress ratios, pressure/risk progress, or verified trade-result fields in the bottom-left dashboard area.
+Version: 2.19.0
+Purpose: Displays current prediction, active-trade health/profit-lock preview, progress ratios, pressure/risk progress, or verified trade-result fields below the chart in the chart-first workspace.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets
 Change History:
+- 2.19.0: Compacted below-chart panel margins, row spacing, and height so the chart keeps priority.
+- 2.18.0: Prepared the prediction/active-trade panel for placement below the chart in the chart-first dashboard layout.
 - 2.17.0: Added display-only Profit Lock readiness preview for future SL protection stages.
 - 2.16.0: Added display-only active-trade health interpretation to simplify TP/SL progress context.
 - 2.15.0: Added display-only TP progress, SL risk, and route-state active-trade ratios.
@@ -40,33 +42,34 @@ class PredictionPanel(QFrame):
     def _build_ui(self) -> None:
         """Build the prediction panel layout."""
         outer_layout = QVBoxLayout(self)
-        outer_layout.setContentsMargins(18, 18, 18, 18)
-        outer_layout.setSpacing(10)
+        outer_layout.setContentsMargins(12, 10, 12, 10)
+        outer_layout.setSpacing(6)
         outer_layout.setAlignment(Qt.AlignTop)
 
         self._title_label = QLabel("Current Prediction")
-        self._title_label.setStyleSheet("font-weight: 700; font-size: 12pt;")
+        self._title_label.setStyleSheet("font-weight: 700; font-size: 11pt;")
         outer_layout.addWidget(self._title_label)
 
         self._summary_label = QLabel("Waiting for a validated setup.")
         self._summary_label.setObjectName("ActiveTradeSummary")
         self._summary_label.setWordWrap(True)
         self._summary_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
-        self._summary_label.setMinimumHeight(58)
+        self._summary_label.setMinimumHeight(92)
+        self._summary_label.setMaximumHeight(135)
         self._summary_label.setStyleSheet(
             "QLabel#ActiveTradeSummary {"
             "border: 1px solid rgba(46, 204, 184, 0.35);"
             "border-radius: 6px;"
-            "padding: 10px;"
+            "padding: 8px;"
             "background-color: rgba(9, 24, 31, 0.80);"
-            "font-size: 10pt;"
+            "font-size: 9pt;"
             "}"
         )
         outer_layout.addWidget(self._summary_label)
 
         grid = QGridLayout()
-        grid.setHorizontalSpacing(14)
-        grid.setVerticalSpacing(8)
+        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(4)
         labels = ["Direction", "Confidence", "Timeframe", "Reason", "TP", "SL", "Risk Reward"]
         for row, label_text in enumerate(labels):
             label = QLabel(f"{label_text}:")

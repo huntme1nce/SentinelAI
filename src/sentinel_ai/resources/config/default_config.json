@@ -80,13 +80,14 @@
       "2.5.0: Locked Auto Trade by default and added prediction persistence stabilization.",
       "2.6.0: Added Auto Trade diagnostics build version while keeping Auto Trade locked by default.",
       "2.7.0: Added Stage 8 Trade Manager service completion build version while keeping Auto Trade locked by default.",
+      "2.20.0: Added grouped statistics sidebar build version while preserving chart-first workspace layout.",
       "2.9.0: Added GUI clarity milestone while preserving trading and learning safety defaults.",
       "2.8.0: Added learning-readiness review defaults while keeping automatic parameter adjustment disabled."
     ]
   },
   "application": {
     "name": "Sentinel AI",
-    "version": "2.17.0",
+    "version": "2.20.0",
     "environment": "production"
   },
   "trading": {

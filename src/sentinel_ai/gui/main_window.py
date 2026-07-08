@@ -2,10 +2,13 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-Version: 2.17.0
-Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, market-structure, analysis, Auto Trade diagnostics, trade-lifecycle, result-settlement, or trade-risk decision logic.
+Version: 2.20.0
+Purpose: Provides the Sentinel AI chart-first main shell layout with a compact below-chart trade panel and grouped statistics sidebar without embedding trading, symbol-management, market-structure, analysis, Auto Trade diagnostics, trade-lifecycle, result-settlement, or trade-risk decision logic.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models
 Change History:
+- 2.20.0: Preserved chart-first workspace while statistics sidebar rows are grouped for readability.
+- 2.19.0: Protected chart height by narrowing the statistics sidebar and capping the below-chart trade panel height.
+- 2.18.0: Reworked dashboard into left statistics sidebar with chart-first center layout and trade panel below the chart.
 - 2.17.0: Added display-only Profit Lock preview routing for future SL protection stages.
 - 2.15.0: Routed display-only TP progress, SL risk, and route-state values into active-trade panels.
 - 2.14.0: Added display-only active-trade risk alert routing for TP approach and SL danger visibility.
@@ -91,6 +94,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
+    QScrollArea,
     QSizePolicy,
     QStatusBar,
     QToolBar,
@@ -198,17 +202,37 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(ledger_button)
 
     def _build_main_layout(self) -> None:
+        """Build a chart-first workspace with a scrollable left statistics sidebar."""
         central = QWidget()
-        outer_layout = QVBoxLayout(central)
+        outer_layout = QHBoxLayout(central)
         outer_layout.setContentsMargins(14, 14, 14, 14)
         outer_layout.setSpacing(14)
+
+        statistics_sidebar = QScrollArea()
+        statistics_sidebar.setObjectName("StatisticsSidebar")
+        statistics_sidebar.setWidgetResizable(True)
+        statistics_sidebar.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        statistics_sidebar.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        statistics_sidebar.setMinimumWidth(330)
+        statistics_sidebar.setMaximumWidth(430)
+        statistics_sidebar.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+        statistics_sidebar.setWidget(self._statistics_panel)
+
+        chart_workspace = QWidget()
+        chart_workspace.setObjectName("ChartWorkspace")
+        chart_layout = QVBoxLayout(chart_workspace)
+        chart_layout.setContentsMargins(0, 0, 0, 0)
+        chart_layout.setSpacing(14)
+
         self._chart_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        outer_layout.addWidget(self._chart_panel, stretch=8)
-        bottom_layout = QHBoxLayout()
-        bottom_layout.setSpacing(14)
-        bottom_layout.addWidget(self._prediction_panel, stretch=1)
-        bottom_layout.addWidget(self._statistics_panel, stretch=1)
-        outer_layout.addLayout(bottom_layout, stretch=2)
+        self._prediction_panel.setMinimumHeight(175)
+        self._prediction_panel.setMaximumHeight(265)
+        self._prediction_panel.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        chart_layout.addWidget(self._chart_panel, stretch=12)
+        chart_layout.addWidget(self._prediction_panel, stretch=0)
+
+        outer_layout.addWidget(statistics_sidebar, stretch=0)
+        outer_layout.addWidget(chart_workspace, stretch=1)
         self.setCentralWidget(central)
 
     def _build_status_bar(self) -> None:

@@ -2,10 +2,13 @@
 MODULE: CORE-000
 FILE: CORE-000-001
 Module Name: Sentinel AI Package
-Version: 2.17.0
+Version: 2.20.0
 Purpose: Exposes package-level application metadata.
 Dependencies: None
 Change History:
+- 2.20.0: Updated package metadata for grouped statistics sidebar build.
+- 2.19.0: Updated package metadata for compact chart workspace and trade panel height build.
+- 2.18.0: Updated package metadata for chart-first dashboard layout build.
 - 2.17.0: Updated package metadata for display-only Profit Lock readiness preview build.
 - 2.16.0: Updated package metadata for active-trade health interpretation build.
 - 2.15.0: Updated package metadata for active-trade progress ratio visibility build.
@@ -66,4 +69,4 @@ Change History:
 """
 
 __app_name__ = "Sentinel AI"
-__version__ = "2.17.0"
+__version__ = "2.20.0"
