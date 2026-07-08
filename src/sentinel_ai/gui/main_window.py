@@ -2,10 +2,11 @@
 MODULE: GUI-004
 FILE: GUI-004-001
 Module Name: Main Window
-Version: 2.16.0
+Version: 2.17.0
 Purpose: Provides the Sentinel AI main shell layout without embedding trading, symbol-management, market-structure, analysis, Auto Trade diagnostics, trade-lifecycle, result-settlement, or trade-risk decision logic.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets, sentinel_ai.config.config_schema, sentinel_ai.gui.widgets, sentinel_ai.models
 Change History:
+- 2.17.0: Added display-only Profit Lock preview routing for future SL protection stages.
 - 2.15.0: Routed display-only TP progress, SL risk, and route-state values into active-trade panels.
 - 2.14.0: Added display-only active-trade risk alert routing for TP approach and SL danger visibility.
 - 2.13.0: Added display-only active-trade pressure routing for open Sentinel trades.
@@ -491,6 +492,10 @@ class MainWindow(QMainWindow):
             stop_loss_risk = active_trade_progress["stop_loss_risk"]
             route_state = active_trade_progress["route_state"]
             trade_health = active_trade_progress["trade_health"]
+            profit_lock_state = active_trade_progress["profit_lock_state"]
+            next_lock_trigger = active_trade_progress["next_lock_trigger"]
+            suggested_lock_sl = active_trade_progress["suggested_lock_sl"]
+            suggested_lock_progress = active_trade_progress["suggested_lock_progress"]
             self._prediction_panel.update_active_trade(
                 direction=f"{position_snapshot.direction} POSITION",
                 status="Position Open",
@@ -509,6 +514,10 @@ class MainWindow(QMainWindow):
                 stop_loss_risk=active_trade_progress["stop_loss_risk"],
                 route_state=active_trade_progress["route_state"],
                 trade_health=active_trade_progress["trade_health"],
+                profit_lock_state=active_trade_progress["profit_lock_state"],
+                next_lock_trigger=active_trade_progress["next_lock_trigger"],
+                suggested_lock_sl=active_trade_progress["suggested_lock_sl"],
+                suggested_lock_progress=active_trade_progress["suggested_lock_progress"],
             )
             self._chart_panel.set_active_position_snapshot(position_snapshot)
         else:
@@ -522,6 +531,10 @@ class MainWindow(QMainWindow):
             stop_loss_risk = "-"
             route_state = "NO_TRADE"
             trade_health = "NO_TRADE"
+            profit_lock_state = "NO_TRADE"
+            next_lock_trigger = "-"
+            suggested_lock_sl = "-"
+            suggested_lock_progress = "-"
             learning_status = position_snapshot.message
             self._chart_panel.set_active_position_snapshot(position_snapshot)
 
@@ -599,6 +612,10 @@ class MainWindow(QMainWindow):
             stop_loss_risk=stop_loss_risk,
             route_state=route_state,
             trade_health=trade_health,
+            profit_lock_state=profit_lock_state,
+            next_lock_trigger=next_lock_trigger,
+            suggested_lock_sl=suggested_lock_sl,
+            suggested_lock_progress=suggested_lock_progress,
         )
 
     @staticmethod
@@ -617,6 +634,10 @@ class MainWindow(QMainWindow):
                 "stop_loss_risk": "-",
                 "route_state": "UNKNOWN_ROUTE",
                 "trade_health": "UNKNOWN_HEALTH",
+                "profit_lock_state": "UNKNOWN_LOCK",
+                "next_lock_trigger": "-",
+                "suggested_lock_sl": "-",
+                "suggested_lock_progress": "-",
             }
 
         distance_to_take_profit = MainWindow._format_price_distance(current_price, position_snapshot.take_profit)
@@ -641,6 +662,7 @@ class MainWindow(QMainWindow):
             take_profit_progress=progress_ratio["take_profit_progress"],
             stop_loss_risk=progress_ratio["stop_loss_risk"],
         )
+        profit_lock_preview = MainWindow._build_profit_lock_preview(position_snapshot, progress_ratio["take_profit_progress"])
         return {
             "current_price": f"{current_price:.2f}",
             "distance_to_take_profit": distance_to_take_profit,
@@ -652,6 +674,10 @@ class MainWindow(QMainWindow):
             "stop_loss_risk": progress_ratio["stop_loss_risk"],
             "route_state": progress_ratio["route_state"],
             "trade_health": trade_health,
+            "profit_lock_state": profit_lock_preview["profit_lock_state"],
+            "next_lock_trigger": profit_lock_preview["next_lock_trigger"],
+            "suggested_lock_sl": profit_lock_preview["suggested_lock_sl"],
+            "suggested_lock_progress": profit_lock_preview["suggested_lock_progress"],
         }
 
     @staticmethod
@@ -819,6 +845,101 @@ class MainWindow(QMainWindow):
             return float(str(value).replace("%", "").strip())
         except (TypeError, ValueError):
             return 0.0
+
+
+    @staticmethod
+    def _build_profit_lock_preview(position_snapshot: PositionMonitorSnapshot, take_profit_progress: str) -> dict[str, str]:
+        """Build display-only future Profit Lock Manager preview labels without modifying SL."""
+        if (
+            position_snapshot.open_price is None
+            or position_snapshot.take_profit is None
+            or position_snapshot.stop_loss is None
+            or position_snapshot.current_price is None
+        ):
+            return {
+                "profit_lock_state": "NOT_READY",
+                "next_lock_trigger": "Needs TP/SL",
+                "suggested_lock_sl": "-",
+                "suggested_lock_progress": "-",
+            }
+
+        progress_percent = MainWindow._parse_percentage_label(take_profit_progress)
+        normalized_direction = str(position_snapshot.direction).upper().strip()
+        if normalized_direction not in {"BUY", "SELL"}:
+            return {
+                "profit_lock_state": "UNKNOWN_LOCK",
+                "next_lock_trigger": "-",
+                "suggested_lock_sl": "-",
+                "suggested_lock_progress": "-",
+            }
+
+        stage_one_trigger = 50.0
+        stage_one_lock = 25.0
+        stage_two_trigger = 75.0
+        stage_two_lock = 50.0
+
+        if progress_percent >= stage_two_trigger:
+            state = "STAGE_2_LOCK_READY"
+            trigger_label = "75% reached"
+            lock_percent = stage_two_lock
+        elif progress_percent >= stage_one_trigger:
+            state = "STAGE_1_LOCK_READY"
+            trigger_label = "50% reached"
+            lock_percent = stage_one_lock
+        else:
+            state = "WATCHING_50_TRIGGER"
+            trigger_label = f"50% trigger ({max(0.0, stage_one_trigger - progress_percent):.2f}% away)"
+            lock_percent = stage_one_lock
+
+        suggested_lock_sl = MainWindow._resolve_profit_lock_price(
+            direction=normalized_direction,
+            open_price=position_snapshot.open_price,
+            take_profit=position_snapshot.take_profit,
+            lock_percent=lock_percent,
+        )
+        if not MainWindow._is_profit_lock_forward_only(
+            direction=normalized_direction,
+            current_stop_loss=position_snapshot.stop_loss,
+            suggested_lock_sl=suggested_lock_sl,
+            open_price=position_snapshot.open_price,
+        ):
+            return {
+                "profit_lock_state": "ALREADY_PROTECTED_OR_INVALID",
+                "next_lock_trigger": trigger_label,
+                "suggested_lock_sl": f"{suggested_lock_sl:.2f}",
+                "suggested_lock_progress": f"{lock_percent:.0f}% lock preview",
+            }
+
+        return {
+            "profit_lock_state": state,
+            "next_lock_trigger": trigger_label,
+            "suggested_lock_sl": f"{suggested_lock_sl:.2f}",
+            "suggested_lock_progress": f"{lock_percent:.0f}% lock preview",
+        }
+
+    @staticmethod
+    def _resolve_profit_lock_price(direction: str, open_price: float, take_profit: float, lock_percent: float) -> float:
+        """Return the display-only future SL level that would lock a percentage of the TP path."""
+        progress_ratio = max(0.0, min(100.0, lock_percent)) / 100.0
+        if direction == "BUY":
+            return open_price + ((take_profit - open_price) * progress_ratio)
+        return open_price - ((open_price - take_profit) * progress_ratio)
+
+    @staticmethod
+    def _is_profit_lock_forward_only(
+        direction: str,
+        current_stop_loss: float | None,
+        suggested_lock_sl: float,
+        open_price: float,
+    ) -> bool:
+        """Return True only when the previewed SL would reduce risk and lock profit."""
+        if current_stop_loss is None:
+            return False
+        if direction == "BUY":
+            return suggested_lock_sl > open_price and suggested_lock_sl > current_stop_loss
+        if direction == "SELL":
+            return suggested_lock_sl < open_price and suggested_lock_sl < current_stop_loss
+        return False
 
     def set_manual_trade_review_enabled(self, enabled: bool) -> None:
         """Enable Manual Trade only when a validated ready plan exists."""

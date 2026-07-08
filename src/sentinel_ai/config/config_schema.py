@@ -2,10 +2,11 @@
 MODULE: CFG-001
 FILE: CFG-001-001
 Module Name: Configuration Schema
-Version: 2.8.0
-Purpose: Defines validated configuration models for Sentinel AI, including modular analysis-engine and learning-readiness settings.
+Version: 2.17.0
+Purpose: Defines validated configuration models for Sentinel AI, including modular analysis-engine, learning-readiness, and profit-lock preview settings.
 Dependencies: dataclasses, typing
 Change History:
+- 2.17.0: Added ProfitLockConfig for display-only future SL profit-lock preview settings.
 - 2.8.0: Added LearningConfig for Stage 9 statistical review readiness without automatic parameter mutation.
 - 2.7.0: Preserved schema while versioning the Stage 8 Trade Manager service completion build.
 - 2.6.0: Preserved schema while versioning the Auto Trade diagnostics sprint.
@@ -658,6 +659,54 @@ class LearningConfig:
 
 
 @dataclass(frozen=True)
+class ProfitLockConfig:
+    """Represent future profit-lock manager settings without enabling SL modification."""
+
+    enabled: bool
+    execution_enabled: bool
+    apply_to_manual_trades: bool
+    apply_to_auto_trades: bool
+    stage_one_trigger_percent: float
+    stage_one_lock_percent: float
+    stage_two_trigger_percent: float
+    stage_two_lock_percent: float
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ProfitLockConfig":
+        """Create a ProfitLockConfig from a dictionary while keeping execution disabled."""
+        stage_one_trigger = float(data.get("stage_one_trigger_percent", 50.0))
+        stage_one_lock = float(data.get("stage_one_lock_percent", 25.0))
+        stage_two_trigger = float(data.get("stage_two_trigger_percent", 75.0))
+        stage_two_lock = float(data.get("stage_two_lock_percent", 50.0))
+        for field_name, value in {
+            "stage_one_trigger_percent": stage_one_trigger,
+            "stage_one_lock_percent": stage_one_lock,
+            "stage_two_trigger_percent": stage_two_trigger,
+            "stage_two_lock_percent": stage_two_lock,
+        }.items():
+            if value < 0.0 or value > 100.0:
+                raise ValueError(f"profit_lock.{field_name} must be between 0 and 100.")
+        if stage_one_lock > stage_one_trigger:
+            raise ValueError("profit_lock.stage_one_lock_percent must not exceed stage_one_trigger_percent.")
+        if stage_two_lock > stage_two_trigger:
+            raise ValueError("profit_lock.stage_two_lock_percent must not exceed stage_two_trigger_percent.")
+        if stage_two_trigger < stage_one_trigger:
+            raise ValueError("profit_lock.stage_two_trigger_percent must be greater than or equal to stage_one_trigger_percent.")
+        if bool(data.get("execution_enabled", False)):
+            raise ValueError("Sprint 2.17.0 forbids live Profit Lock execution. Keep profit_lock.execution_enabled false.")
+        return cls(
+            enabled=bool(data.get("enabled", True)),
+            execution_enabled=False,
+            apply_to_manual_trades=bool(data.get("apply_to_manual_trades", True)),
+            apply_to_auto_trades=bool(data.get("apply_to_auto_trades", True)),
+            stage_one_trigger_percent=stage_one_trigger,
+            stage_one_lock_percent=stage_one_lock,
+            stage_two_trigger_percent=stage_two_trigger,
+            stage_two_lock_percent=stage_two_lock,
+        )
+
+
+@dataclass(frozen=True)
 class DatabaseConfig:
     """Represent database file settings."""
 
@@ -721,6 +770,7 @@ class SentinelConfig:
     risk_reward: RiskRewardConfig
     manual_trading: ManualTradingConfig
     learning: LearningConfig
+    profit_lock: ProfitLockConfig
     database: DatabaseConfig
     logging: LoggingConfig
     ui: UiConfig
@@ -744,6 +794,7 @@ class SentinelConfig:
             risk_reward=RiskRewardConfig.from_dict(data["analysis"]["risk_reward"]),
             manual_trading=ManualTradingConfig.from_dict(data["manual_trading"]),
             learning=LearningConfig.from_dict(data.get("learning", {})),
+            profit_lock=ProfitLockConfig.from_dict(data.get("profit_lock", {})),
             database=DatabaseConfig.from_dict(data["database"]),
             logging=LoggingConfig.from_dict(data["logging"]),
             ui=UiConfig.from_dict(data["ui"]),

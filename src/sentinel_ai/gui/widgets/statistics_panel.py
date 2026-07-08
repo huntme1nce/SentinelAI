@@ -2,10 +2,11 @@
 MODULE: GUI-003
 FILE: GUI-003-003
 Module Name: Statistics Panel
-Version: 2.16.0
-Purpose: Displays persistent prediction statistics, open-trade health, progress ratios, pressure/risk alerts, and Auto Trade diagnostics in the bottom-right dashboard area.
+Version: 2.17.0
+Purpose: Displays persistent prediction statistics, open-trade health, profit-lock preview, progress ratios, pressure/risk alerts, and Auto Trade diagnostics in the bottom-right dashboard area.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets
 Change History:
+- 2.17.0: Added Profit Lock preview rows for future SL protection manager readiness.
 - 2.16.0: Added Trade Health row for display-only active-trade interpretation.
 - 2.15.0: Added TP Progress, SL Risk, and Route State rows for display-only open Sentinel trade monitoring.
 - 2.14.0: Added Risk Alert row for display-only open Sentinel trade proximity monitoring.
@@ -93,6 +94,10 @@ class StatisticsPanel(QFrame):
             "SL Risk",
             "Route State",
             "Trade Health",
+            "Profit Lock",
+            "Next Lock Trigger",
+            "Suggested Lock SL",
+            "Suggested Lock",
             "Position Ticket",
             "Protection Status",
             "Ledger Warning",
@@ -154,6 +159,10 @@ class StatisticsPanel(QFrame):
         stop_loss_risk: str = "-",
         route_state: str = "-",
         trade_health: str = "-",
+        profit_lock_state: str = "-",
+        next_lock_trigger: str = "-",
+        suggested_lock_sl: str = "-",
+        suggested_lock_progress: str = "-",
     ) -> None:
         """Update active position monitoring and display-only health/progress-ratio fields."""
         self._fields["Active Position"].setText(active_position)
@@ -164,6 +173,10 @@ class StatisticsPanel(QFrame):
         self._fields["SL Risk"].setText(stop_loss_risk or "-")
         self._fields["Route State"].setText(route_state or "-")
         self._fields["Trade Health"].setText(trade_health or "-")
+        self._fields["Profit Lock"].setText(profit_lock_state or "-")
+        self._fields["Next Lock Trigger"].setText(next_lock_trigger or "-")
+        self._fields["Suggested Lock SL"].setText(suggested_lock_sl or "-")
+        self._fields["Suggested Lock"].setText(suggested_lock_progress or "-")
         self._fields["Position Ticket"].setText(ticket)
         self._fields["Protection Status"].setText(protection_status)
         # Learning status is kept in the status bar/backend diagnostics to keep the main dashboard clean.

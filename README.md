@@ -1,72 +1,76 @@
 # Sentinel AI
 
-## Version 2.16.0: Active Trade Health Interpretation Build
+## Version 2.17.0: Profit Lock Preview Visibility Build
 
-This build improves open Sentinel trade readability while preserving the manual-mode stabilization posture.
+This build adds a **display-only Profit Lock preview** for future SL-based profit protection. It does not move stop loss, close trades, place hedge trades, modify TP/SL, or unlock Auto Trade.
 
-### Visual Update
+## What changed visually
 
-The **Active Trade** panel now shows a display-only health interpretation that summarizes the existing progress fields:
-
-```text
-BUY POSITION | Position Open | Current: 4114.44
-Open P/L 4.72 | TP: 4129.36 | SL: 4093.65
-Distance to TP: 14.92 | Distance to SL: 20.79 | Closer: TP
-Trade Pressure: TP_PRESSURE | Risk Alert: NEUTRAL_ZONE
-TP Progress: 24.03% | SL Risk: 0.00% | Route: PROFIT_PROGRESS
-Trade Health: HEALTHY_PROGRESS
-```
-
-The **Statistics** panel also exposes:
+The Active Trade panel now shows future profit-lock readiness while a Sentinel-owned trade is open:
 
 ```text
-Trade Health
+Profit Lock: WATCHING_50_TRIGGER / STAGE_1_LOCK_READY / STAGE_2_LOCK_READY / ALREADY_PROTECTED_OR_INVALID
+Next: 50% trigger / 50% reached / 75% reached
+Suggested SL: previewed SL level
+Lock: 25% lock preview / 50% lock preview
 ```
 
-### Trade Health States
+The Statistics panel now includes:
 
 ```text
-HEALTHY_PROGRESS
-STRONG_PROGRESS_NEAR_TP
-WATCH_DRAWDOWN
-HIGH_RISK_NEAR_SL
-ENTRY_ZONE_MONITOR
-STABLE_MONITOR
-UNKNOWN_HEALTH
-NO_TRADE
+Profit Lock
+Next Lock Trigger
+Suggested Lock SL
+Suggested Lock
 ```
 
-### Safety
-
-These fields are display-only. This build does not:
+## Current safety status
 
 ```text
-move SL
-move TP
-close trades
-unlock Auto Trade
-change strategy rules
-change MT5 execution logic
-change ledger settlement logic
+Strategy logic changed: No
+MT5 order logic changed: No
+Ledger settlement logic changed: No
+Auto Trade unlocked: No
+Profit Lock execution: Disabled
+SL modification: Disabled
 ```
 
-### Auto Trade
+## Future Profit Lock Manager intent
 
-Auto Trade remains locked/dormant until manual-mode lifecycle results are verified.
+When later enabled after demo validation, the intended SL protection model is:
 
-### Validation
+```text
+At 50% TP Progress: move SL beyond entry to lock around 25% progress.
+At 75% TP Progress: move SL farther to lock around 50% progress.
+```
 
-Run:
+It is intended to support both Manual Sentinel trades and future Auto Sentinel trades, with guardrails:
+
+```text
+Only move SL in trade direction
+Never widen risk
+Broker stop-level checks
+Spread safety checks
+Sentinel-owned trades only
+Separate execution toggle
+```
+
+## Run
 
 ```powershell
 cd D:\projects\sentinelai
 .\.venv\Scripts\Activate.ps1
+python scripts\validate_sprint.py
 $env:PYTHONPATH="src"
-python scriptsalidate_sprint.py
+python -m sentinel_ai.main
 ```
 
-Expected result includes:
+## Validation
+
+Expected validator result includes:
 
 ```text
-active-trade health interpretation ready
+Profit Lock preview visibility ready
 ```
+
+Use demo first. Auto Trade and Profit Lock execution remain locked/disabled in this build.

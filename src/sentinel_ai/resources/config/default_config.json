@@ -86,7 +86,7 @@
   },
   "application": {
     "name": "Sentinel AI",
-    "version": "2.16.0",
+    "version": "2.17.0",
     "environment": "production"
   },
   "trading": {
@@ -240,5 +240,19 @@
     "minimum_pattern_losses": 3,
     "max_failure_patterns": 3,
     "automatic_parameter_adjustment_enabled": false
+  },
+  "profit_lock": {
+    "enabled": true,
+    "execution_enabled": false,
+    "apply_to_manual_trades": true,
+    "apply_to_auto_trades": true,
+    "stage_one_trigger_percent": 50.0,
+    "stage_one_lock_percent": 25.0,
+    "stage_two_trigger_percent": 75.0,
+    "stage_two_lock_percent": 50.0,
+    "only_move_sl_forward": true,
+    "never_widen_risk": true,
+    "broker_stop_level_check_required": true,
+    "spread_safety_check_required": true
   }
 }

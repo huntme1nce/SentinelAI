@@ -2,10 +2,11 @@
 MODULE: GUI-003
 FILE: GUI-003-002
 Module Name: Prediction Panel
-Version: 2.16.0
-Purpose: Displays current prediction, active-trade health interpretation, progress ratios, pressure/risk progress, or verified trade-result fields in the bottom-left dashboard area.
+Version: 2.17.0
+Purpose: Displays current prediction, active-trade health/profit-lock preview, progress ratios, pressure/risk progress, or verified trade-result fields in the bottom-left dashboard area.
 Dependencies: PySide6.QtCore, PySide6.QtWidgets
 Change History:
+- 2.17.0: Added display-only Profit Lock readiness preview for future SL protection stages.
 - 2.16.0: Added display-only active-trade health interpretation to simplify TP/SL progress context.
 - 2.15.0: Added display-only TP progress, SL risk, and route-state active-trade ratios.
 - 2.14.0: Added display-only active-trade risk alert state for TP approach and SL danger visibility.
@@ -127,6 +128,10 @@ class PredictionPanel(QFrame):
         stop_loss_risk: str = "-",
         route_state: str = "-",
         trade_health: str = "-",
+        profit_lock_state: str = "-",
+        next_lock_trigger: str = "-",
+        suggested_lock_sl: str = "-",
+        suggested_lock_progress: str = "-",
     ) -> str:
         """Build a compact active-trade progress, ratio, risk-alert, and health summary for the upper card."""
         clean_profit_loss = str(open_profit_loss).strip() or "Open P/L -"
@@ -142,13 +147,18 @@ class PredictionPanel(QFrame):
         clean_stop_loss_risk = str(stop_loss_risk).strip() or "-"
         clean_route_state = str(route_state).strip() or "-"
         clean_trade_health = str(trade_health).strip() or "-"
+        clean_profit_lock_state = str(profit_lock_state).strip() or "-"
+        clean_next_lock_trigger = str(next_lock_trigger).strip() or "-"
+        clean_suggested_lock_sl = str(suggested_lock_sl).strip() or "-"
+        clean_suggested_lock_progress = str(suggested_lock_progress).strip() or "-"
         return (
             f"{direction} | {status} | Current: {clean_current_price}\n"
             f"{clean_profit_loss} | TP: {take_profit} | SL: {stop_loss}\n"
             f"Distance to TP: {clean_take_profit_distance} | Distance to SL: {clean_stop_loss_distance} | Closer: {clean_closer_target}\n"
             f"Trade Pressure: {clean_trade_pressure} | Risk Alert: {clean_risk_alert}\n"
             f"TP Progress: {clean_take_profit_progress} | SL Risk: {clean_stop_loss_risk} | Route: {clean_route_state}\n"
-            f"Trade Health: {clean_trade_health}"
+            f"Trade Health: {clean_trade_health}\n"
+            f"Profit Lock: {clean_profit_lock_state} | Next: {clean_next_lock_trigger} | Suggested SL: {clean_suggested_lock_sl} | Lock: {clean_suggested_lock_progress}"
         )
 
     @staticmethod
@@ -219,6 +229,10 @@ class PredictionPanel(QFrame):
         stop_loss_risk: str = "-",
         route_state: str = "-",
         trade_health: str = "-",
+        profit_lock_state: str = "-",
+        next_lock_trigger: str = "-",
+        suggested_lock_sl: str = "-",
+        suggested_lock_progress: str = "-",
     ) -> None:
         """Update the panel as an active-trade health, progress, ratio, and risk-alert monitor instead of a prediction card."""
         self._set_title("Active Trade")
@@ -239,6 +253,10 @@ class PredictionPanel(QFrame):
                 stop_loss_risk=stop_loss_risk,
                 route_state=route_state,
                 trade_health=trade_health,
+                profit_lock_state=profit_lock_state,
+                next_lock_trigger=next_lock_trigger,
+                suggested_lock_sl=suggested_lock_sl,
+                suggested_lock_progress=suggested_lock_progress,
             )
         )
         self._fields["Direction"].setText(direction)
